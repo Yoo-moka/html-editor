@@ -400,6 +400,104 @@
             background: var(--accent); color: #fff;
         }
         .modal-btn-confirm:hover { background: var(--accent-hover); }
+
+        /* ─── Token Config Modal ─── */
+        #token-modal-backdrop {
+            position: fixed; inset: 0; z-index: 10001;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none;
+            transition: opacity 180ms;
+        }
+        #token-modal-backdrop.open { opacity: 1; pointer-events: all; }
+        #token-modal {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-active);
+            border-radius: 12px;
+            padding: 24px;
+            width: 380px;
+            transform: translateY(12px) scale(0.97);
+            transition: transform 200ms cubic-bezier(0.34,1.56,0.64,1);
+            box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+        }
+        #token-modal-backdrop.open #token-modal { transform: translateY(0) scale(1); }
+        .token-modal-title { font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; }
+        .token-modal-sub { font-size: 11px; color: var(--text-muted); margin-bottom: 16px; line-height: 1.6; }
+        .token-modal-sub a { color: var(--accent); text-decoration: none; }
+        .token-modal-sub a:hover { text-decoration: underline; }
+        .token-input-wrap { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+        .token-input-label { font-size: 11px; font-weight: 600; color: var(--text-secondary); }
+        .token-input-row { display: flex; gap: 6px; }
+        #token-input, #repo-input {
+            flex: 1; height: 32px; padding: 0 10px;
+            background: var(--bg-panel); border: 1px solid var(--border);
+            border-radius: var(--radius-sm); color: var(--text-primary);
+            font-family: var(--font-mono); font-size: 12px; outline: none;
+            transition: border-color var(--transition);
+        }
+        #token-input:focus, #repo-input:focus { border-color: var(--accent); }
+        .token-hint { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+
+        /* ─── Link Result Modal ─── */
+        #link-modal-backdrop {
+            position: fixed; inset: 0; z-index: 10002;
+            background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(3px);
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none;
+            transition: opacity 180ms;
+        }
+        #link-modal-backdrop.open { opacity: 1; pointer-events: all; }
+        #link-modal {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-active);
+            border-radius: 12px; padding: 24px;
+            width: 400px;
+            transform: translateY(12px) scale(0.97);
+            transition: transform 200ms cubic-bezier(0.34,1.56,0.64,1);
+            box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+        }
+        #link-modal-backdrop.open #link-modal { transform: translateY(0) scale(1); }
+        .link-modal-icon {
+            width: 40px; height: 40px; border-radius: 10px;
+            background: var(--success-dim); display: flex;
+            align-items: center; justify-content: center; margin-bottom: 14px;
+        }
+        .link-modal-icon svg { width: 20px; height: 20px; color: var(--success); }
+        .link-modal-title { font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+        .link-modal-sub { font-size: 11px; color: var(--text-muted); margin-bottom: 16px; }
+        .link-result-row {
+            display: flex; gap: 6px; align-items: center;
+            background: var(--bg-panel); border: 1px solid var(--border);
+            border-radius: var(--radius-sm); padding: 8px 12px;
+            margin-bottom: 16px;
+        }
+        #link-result-url {
+            flex: 1; font-family: var(--font-mono); font-size: 11px;
+            color: var(--accent); word-break: break-all;
+            user-select: all; cursor: text;
+        }
+        .btn-copy-link {
+            flex-shrink: 0; height: 28px; padding: 0 10px;
+            background: var(--accent-dim); border: none; border-radius: 4px;
+            color: var(--accent); font-size: 11px; font-weight: 600;
+            cursor: pointer; font-family: var(--font-ui);
+            transition: background var(--transition);
+        }
+        .btn-copy-link:hover { background: rgba(108,140,255,0.22); }
+        .btn-open-link {
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            width: 100%; height: 34px; border: none; border-radius: var(--radius-sm);
+            background: var(--accent); color: #fff;
+            font-family: var(--font-ui); font-size: 12px; font-weight: 600;
+            cursor: pointer; transition: background var(--transition);
+        }
+        .btn-open-link:hover { background: var(--accent-hover); }
+        .btn-open-link svg { width: 13px; height: 13px; }
+        .link-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
+        .link-manage { font-size: 11px; color: var(--text-muted); cursor: pointer; }
+        .link-manage:hover { color: var(--text-secondary); text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -631,10 +729,82 @@
                 </div>
                 <div class="fmt-radio"><div class="fmt-radio-dot"></div></div>
             </div>
+            <div class="fmt-option" data-fmt="link">
+                <div class="fmt-badge" style="background:rgba(76,175,130,0.16);color:#4caf82;font-size:9px;">LINK</div>
+                <div class="fmt-info">
+                    <div class="fmt-name">生成链接</div>
+                    <div class="fmt-desc">发布到 GitHub Pages，生成可分享的访问链接</div>
+                </div>
+                <div class="fmt-radio"><div class="fmt-radio-dot"></div></div>
+            </div>
         </div>
         <div class="modal-footer">
             <button class="modal-btn modal-btn-cancel" id="modal-cancel">取消</button>
             <button class="modal-btn modal-btn-confirm" id="modal-confirm">确认导出</button>
+        </div>
+    </div>
+</div>
+
+<!-- Token Config Modal -->
+<div id="token-modal-backdrop">
+    <div id="token-modal">
+        <div class="token-modal-title">配置 GitHub Token</div>
+        <div class="token-modal-sub">
+            需要 GitHub Personal Access Token 才能发布页面。<br>
+            在 <a href="https://github.com/settings/tokens" target="_blank">GitHub Settings → Tokens (classic)</a> 生成，勾选 <strong>repo</strong> 权限。Token 仅存储在本地浏览器中。
+        </div>
+        <div class="token-input-wrap">
+            <div class="token-input-label">Personal Access Token</div>
+            <div class="token-input-row">
+                <input id="token-input" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+            </div>
+            <div class="token-hint">格式：ghp_ 开头的字符串</div>
+        </div>
+        <div class="token-input-wrap">
+            <div class="token-input-label">GitHub 用户名</div>
+            <div class="token-input-row">
+                <input id="gh-username-input" type="text" placeholder="Yoo-moka" autocomplete="off">
+            </div>
+        </div>
+        <div class="token-input-wrap">
+            <div class="token-input-label">仓库名（已有 Pages 仓库）</div>
+            <div class="token-input-row">
+                <input id="repo-input" type="text" placeholder="html-editor" autocomplete="off">
+            </div>
+            <div class="token-hint">页面将发布到该仓库的 GitHub Pages 下</div>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-btn modal-btn-cancel" id="token-modal-cancel">取消</button>
+            <button class="modal-btn modal-btn-confirm" id="token-modal-confirm">保存并发布</button>
+        </div>
+    </div>
+</div>
+
+<!-- Link Result Modal -->
+<div id="link-modal-backdrop">
+    <div id="link-modal">
+        <div class="link-modal-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+            </svg>
+        </div>
+        <div class="link-modal-title">页面已发布！</div>
+        <div class="link-modal-sub">约 1 分钟后生效，链接可直接分享给任何人访问</div>
+        <div class="link-result-row">
+            <span id="link-result-url"></span>
+            <button class="btn-copy-link" id="btn-copy-link">复制</button>
+        </div>
+        <button class="btn-open-link" id="btn-open-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+            </svg>
+            在浏览器中打开
+        </button>
+        <div class="link-footer">
+            <span class="link-manage" id="link-manage-token">修改 Token 配置</span>
+            <button class="modal-btn modal-btn-cancel" id="link-modal-close" style="height:28px;font-size:11px;">关闭</button>
         </div>
     </div>
 </div>
@@ -688,10 +858,125 @@
         if (e.target === saveBackdrop) saveBackdrop.classList.remove('open');
     });
 
+    /* ══════════════════════════════
+       SECTION: Generate Link
+    ══════════════════════════════ */
+    const tokenBackdrop   = document.getElementById('token-modal-backdrop');
+    const tokenInput      = document.getElementById('token-input');
+    const ghUsernameInput = document.getElementById('gh-username-input');
+    const repoInputEl     = document.getElementById('repo-input');
+    const linkBackdrop    = document.getElementById('link-modal-backdrop');
+    const linkResultUrl   = document.getElementById('link-result-url');
+
+    function getGHConfig() {
+        return {
+            token:    localStorage.getItem('gh_token') || '',
+            username: localStorage.getItem('gh_username') || '',
+            repo:     localStorage.getItem('gh_repo') || ''
+        };
+    }
+    function saveGHConfig(token, username, repo) {
+        localStorage.setItem('gh_token', token);
+        localStorage.setItem('gh_username', username);
+        localStorage.setItem('gh_repo', repo);
+    }
+
+    function openTokenModal(onConfirm) {
+        const cfg = getGHConfig();
+        tokenInput.value      = cfg.token;
+        ghUsernameInput.value = cfg.username;
+        repoInputEl.value     = cfg.repo;
+        tokenBackdrop.classList.add('open');
+        tokenBackdrop._onConfirm = onConfirm;
+    }
+
+    document.getElementById('token-modal-cancel').addEventListener('click', () => {
+        tokenBackdrop.classList.remove('open');
+    });
+
+    document.getElementById('token-modal-confirm').addEventListener('click', () => {
+        const t = tokenInput.value.trim();
+        const u = ghUsernameInput.value.trim();
+        const r = repoInputEl.value.trim();
+        if (!t || !u || !r) { showToast('请填写全部字段'); return; }
+        saveGHConfig(t, u, r);
+        tokenBackdrop.classList.remove('open');
+        if (tokenBackdrop._onConfirm) tokenBackdrop._onConfirm(t, u, r);
+    });
+
+    document.getElementById('link-manage-token').addEventListener('click', () => {
+        linkBackdrop.classList.remove('open');
+        openTokenModal((t, u, r) => publishToGitHub(t, u, r));
+    });
+
+    document.getElementById('link-modal-close').addEventListener('click', () => {
+        linkBackdrop.classList.remove('open');
+    });
+
+    document.getElementById('btn-copy-link').addEventListener('click', () => {
+        navigator.clipboard.writeText(linkResultUrl.textContent).then(() => showToast('✓ 链接已复制'));
+    });
+
+    document.getElementById('btn-open-link').addEventListener('click', () => {
+        window.open(linkResultUrl.textContent, '_blank');
+    });
+
+    function showLinkResult(url) {
+        linkResultUrl.textContent = url;
+        linkBackdrop.classList.add('open');
+    }
+
+    async function publishToGitHub(token, username, repo) {
+        const baseName = (filenameInput.value.trim() || 'untitled').replace(/\.(html?)$/i, '');
+        const slug     = baseName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'page';
+        const path     = 'pages/' + slug + '-' + Date.now() + '/index.html';
+        const content  = btoa(unescape(encodeURIComponent(editor.value)));
+
+        showToast('正在发布到 GitHub Pages…', 8000);
+
+        try {
+            const resp = await fetch(
+                `https://api.github.com/repos/${username}/${repo}/contents/${path}`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': 'token ' + token,
+                        'Accept': 'application/vnd.github+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: 'publish: ' + baseName,
+                        content: content
+                    })
+                }
+            );
+
+            if (resp.status === 401) { showToast('Token 无效或已过期，请重新配置'); openTokenModal((t,u,r) => publishToGitHub(t,u,r)); return; }
+            if (resp.status === 404) { showToast('仓库不存在或无权限，请检查配置'); return; }
+            if (!resp.ok) { showToast('发布失败：HTTP ' + resp.status); return; }
+
+            const pageUrl = `https://${username.toLowerCase()}.github.io/${repo}/${path.replace('index.html', '')}`;
+            showLinkResult(pageUrl);
+        } catch (e) {
+            showToast('发布失败：' + e.message);
+        }
+    }
+
+    function handleGenerateLink() {
+        const cfg = getGHConfig();
+        if (!cfg.token || !cfg.username || !cfg.repo) {
+            openTokenModal((t, u, r) => publishToGitHub(t, u, r));
+        } else {
+            publishToGitHub(cfg.token, cfg.username, cfg.repo);
+        }
+    }
+
     document.getElementById('modal-confirm').addEventListener('click', async () => {
         saveBackdrop.classList.remove('open');
         if (selectedFmt === 'html') {
             exportHTML();
+        } else if (selectedFmt === 'link') {
+            handleGenerateLink();
         } else if (selectedFmt === 'pdf') {
             let fileHandle = null;
             if (window.showSaveFilePicker) {
