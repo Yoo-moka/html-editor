@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HTML 编辑器</title>
+    <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
     <meta name="description" content="在线 HTML 编辑器，支持实时预览、可视编辑、导出 PDF / JPG">
     <meta property="og:title" content="HTML 编辑器">
     <meta property="og:description" content="在线 HTML 编辑器，支持实时预览、可视编辑、导出 PDF / JPG">
@@ -745,41 +746,6 @@
     </div>
 </div>
 
-<!-- Token Config Modal -->
-<div id="token-modal-backdrop">
-    <div id="token-modal">
-        <div class="token-modal-title">配置 GitHub Token</div>
-        <div class="token-modal-sub">
-            需要 GitHub Personal Access Token 才能发布页面。<br>
-            在 <a href="https://github.com/settings/tokens" target="_blank">GitHub Settings → Tokens (classic)</a> 生成，勾选 <strong>repo</strong> 权限。Token 仅存储在本地浏览器中。
-        </div>
-        <div class="token-input-wrap">
-            <div class="token-input-label">Personal Access Token</div>
-            <div class="token-input-row">
-                <input id="token-input" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off">
-            </div>
-            <div class="token-hint">格式：ghp_ 开头的字符串</div>
-        </div>
-        <div class="token-input-wrap">
-            <div class="token-input-label">GitHub 用户名</div>
-            <div class="token-input-row">
-                <input id="gh-username-input" type="text" placeholder="Yoo-moka" autocomplete="off">
-            </div>
-        </div>
-        <div class="token-input-wrap">
-            <div class="token-input-label">仓库名（已有 Pages 仓库）</div>
-            <div class="token-input-row">
-                <input id="repo-input" type="text" placeholder="html-editor" autocomplete="off">
-            </div>
-            <div class="token-hint">页面将发布到该仓库的 GitHub Pages 下</div>
-        </div>
-        <div class="modal-footer">
-            <button class="modal-btn modal-btn-cancel" id="token-modal-cancel">取消</button>
-            <button class="modal-btn modal-btn-confirm" id="token-modal-confirm">保存并发布</button>
-        </div>
-    </div>
-</div>
-
 <!-- Link Result Modal -->
 <div id="link-modal-backdrop">
     <div id="link-modal">
@@ -789,8 +755,8 @@
                 <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
             </svg>
         </div>
-        <div class="link-modal-title">页面已发布！</div>
-        <div class="link-modal-sub">约 1 分钟后生效，链接可直接分享给任何人访问</div>
+        <div class="link-modal-title">链接已生成！</div>
+        <div class="link-modal-sub">直接把链接发给任何人，打开即可查看页面，无需任何账号</div>
         <div class="link-result-row">
             <span id="link-result-url"></span>
             <button class="btn-copy-link" id="btn-copy-link">复制</button>
@@ -803,7 +769,7 @@
             在浏览器中打开
         </button>
         <div class="link-footer">
-            <span class="link-manage" id="link-manage-token">修改 Token 配置</span>
+            <span class="link-manage" style="color:var(--text-muted);font-size:11px;">链接内容即页面数据，无需服务器</span>
             <button class="modal-btn modal-btn-cancel" id="link-modal-close" style="height:28px;font-size:11px;">关闭</button>
         </div>
     </div>
@@ -859,58 +825,16 @@
     });
 
     /* ══════════════════════════════
-       SECTION: Generate Link
+       SECTION: Generate Link (URL hash, zero config)
     ══════════════════════════════ */
-    const tokenBackdrop   = document.getElementById('token-modal-backdrop');
-    const tokenInput      = document.getElementById('token-input');
-    const ghUsernameInput = document.getElementById('gh-username-input');
-    const repoInputEl     = document.getElementById('repo-input');
-    const linkBackdrop    = document.getElementById('link-modal-backdrop');
-    const linkResultUrl   = document.getElementById('link-result-url');
-
-    function getGHConfig() {
-        return {
-            token:    localStorage.getItem('gh_token') || '',
-            username: localStorage.getItem('gh_username') || '',
-            repo:     localStorage.getItem('gh_repo') || ''
-        };
-    }
-    function saveGHConfig(token, username, repo) {
-        localStorage.setItem('gh_token', token);
-        localStorage.setItem('gh_username', username);
-        localStorage.setItem('gh_repo', repo);
-    }
-
-    function openTokenModal(onConfirm) {
-        const cfg = getGHConfig();
-        tokenInput.value      = cfg.token;
-        ghUsernameInput.value = cfg.username;
-        repoInputEl.value     = cfg.repo;
-        tokenBackdrop.classList.add('open');
-        tokenBackdrop._onConfirm = onConfirm;
-    }
-
-    document.getElementById('token-modal-cancel').addEventListener('click', () => {
-        tokenBackdrop.classList.remove('open');
-    });
-
-    document.getElementById('token-modal-confirm').addEventListener('click', () => {
-        const t = tokenInput.value.trim();
-        const u = ghUsernameInput.value.trim();
-        const r = repoInputEl.value.trim();
-        if (!t || !u || !r) { showToast('请填写全部字段'); return; }
-        saveGHConfig(t, u, r);
-        tokenBackdrop.classList.remove('open');
-        if (tokenBackdrop._onConfirm) tokenBackdrop._onConfirm(t, u, r);
-    });
-
-    document.getElementById('link-manage-token').addEventListener('click', () => {
-        linkBackdrop.classList.remove('open');
-        openTokenModal((t, u, r) => publishToGitHub(t, u, r));
-    });
+    const linkBackdrop  = document.getElementById('link-modal-backdrop');
+    const linkResultUrl = document.getElementById('link-result-url');
 
     document.getElementById('link-modal-close').addEventListener('click', () => {
         linkBackdrop.classList.remove('open');
+    });
+    linkBackdrop.addEventListener('click', (e) => {
+        if (e.target === linkBackdrop) linkBackdrop.classList.remove('open');
     });
 
     document.getElementById('btn-copy-link').addEventListener('click', () => {
@@ -921,55 +845,43 @@
         window.open(linkResultUrl.textContent, '_blank');
     });
 
-    function showLinkResult(url) {
+    function handleGenerateLink() {
+        const html = editor.value;
+        if (!window.LZString) { showToast('压缩库未加载，请检查网络后刷新'); return; }
+        const compressed = LZString.compressToEncodedURIComponent(html);
+        const base = location.href.split('#')[0].split('?')[0];
+        const url  = base + '#v=' + compressed;
+
+        if (url.length > 50000) {
+            showToast('页面内容过大（>' + Math.round(url.length/1024) + 'KB），链接可能过长，建议精简 HTML 后再生成');
+        }
+
         linkResultUrl.textContent = url;
         linkBackdrop.classList.add('open');
     }
 
-    async function publishToGitHub(token, username, repo) {
-        const baseName = (filenameInput.value.trim() || 'untitled').replace(/\.(html?)$/i, '');
-        const slug     = baseName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'page';
-        const path     = 'pages/' + slug + '-' + Date.now() + '/index.html';
-        const content  = btoa(unescape(encodeURIComponent(editor.value)));
-
-        showToast('正在发布到 GitHub Pages…', 8000);
-
-        try {
-            const resp = await fetch(
-                `https://api.github.com/repos/${username}/${repo}/contents/${path}`,
-                {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': 'token ' + token,
-                        'Accept': 'application/vnd.github+json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        message: 'publish: ' + baseName,
-                        content: content
-                    })
+    /* ── On page load: restore from hash ── */
+    (function restoreFromHash() {
+        const hash = location.hash;
+        if (!hash.startsWith('#v=')) return;
+        const compressed = hash.slice(3);
+        const waitForLZ = (tries) => {
+            if (window.LZString) {
+                const html = LZString.decompressFromEncodedURIComponent(compressed);
+                if (html) {
+                    editor.value = html;
+                    updateLineNumbers();
+                    updateStats();
+                    updatePreview();
+                    setDirty(false);
+                    showToast('已从链接加载页面内容');
                 }
-            );
-
-            if (resp.status === 401) { showToast('Token 无效或已过期，请重新配置'); openTokenModal((t,u,r) => publishToGitHub(t,u,r)); return; }
-            if (resp.status === 404) { showToast('仓库不存在或无权限，请检查配置'); return; }
-            if (!resp.ok) { showToast('发布失败：HTTP ' + resp.status); return; }
-
-            const pageUrl = `https://${username.toLowerCase()}.github.io/${repo}/${path.replace('index.html', '')}`;
-            showLinkResult(pageUrl);
-        } catch (e) {
-            showToast('发布失败：' + e.message);
-        }
-    }
-
-    function handleGenerateLink() {
-        const cfg = getGHConfig();
-        if (!cfg.token || !cfg.username || !cfg.repo) {
-            openTokenModal((t, u, r) => publishToGitHub(t, u, r));
-        } else {
-            publishToGitHub(cfg.token, cfg.username, cfg.repo);
-        }
-    }
+            } else if (tries > 0) {
+                setTimeout(() => waitForLZ(tries - 1), 200);
+            }
+        };
+        waitForLZ(20);
+    })();
 
     document.getElementById('modal-confirm').addEventListener('click', async () => {
         saveBackdrop.classList.remove('open');
