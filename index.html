@@ -3,51 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HTML 编辑器</title>
+    <title>HTML Editor // Terminal</title>
     <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
     <meta name="description" content="在线 HTML 编辑器，支持实时预览、可视编辑、导出 PDF / JPG">
-    <meta property="og:title" content="HTML 编辑器">
+    <meta property="og:title" content="HTML Editor // Terminal">
     <meta property="og:description" content="在线 HTML 编辑器，支持实时预览、可视编辑、导出 PDF / JPG">
     <meta property="og:url" content="https://yoo-moka.github.io/html-editor/">
     <meta property="og:type" content="website">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-primary: #0f1117;
-            --bg-secondary: #1a1d27;
-            --bg-panel: #13151f;
-            --bg-toolbar: #0d0f18;
-            --border: #252836;
-            --border-active: #3d4160;
-            --text-primary: #e8eaf0;
-            --text-secondary: #7b7f99;
-            --text-muted: #4a4f6a;
-            --accent: #6c8cff;
-            --accent-hover: #859cff;
-            --accent-dim: rgba(108, 140, 255, 0.12);
-            --success: #4caf82;
-            --success-dim: rgba(76, 175, 130, 0.12);
-            --warning: #f0b429;
-            --warning-dim: rgba(240,180,41,0.14);
-            --error: #f07070;
-            --error-dim: rgba(240, 112, 112, 0.12);
-            --line-num: #3a3f5a;
-            --selection: rgba(108, 140, 255, 0.18);
-            --scrollbar-thumb: #3a3f5a;
-            --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
-            --font-ui: 'SF Pro Display', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-            --radius: 8px;
-            --radius-sm: 5px;
-            --transition: 160ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            --bg:         #0a0a0a;
+            --bg-panel:   #0d0d0d;
+            --bg-raised:  #111111;
+            --bg-hover:   #161616;
+            --green:      #33ff00;
+            --green-dim:  #1f521f;
+            --green-glow: rgba(51,255,0,0.18);
+            --green-text: rgba(51,255,0,0.85);
+            --amber:      #ffb000;
+            --amber-dim:  rgba(255,176,0,0.15);
+            --red:        #ff3333;
+            --red-dim:    rgba(255,51,51,0.15);
+            --muted:      #2a4a2a;
+            --text:       #33ff00;
+            --text-dim:   #1f7a1f;
+            --text-faint: #0f4a0f;
+            --border:     #1f521f;
+            --border-hi:  #33ff00;
+            --font:       'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            --glow:       0 0 6px rgba(51,255,0,0.45);
+            --glow-sm:    0 0 4px rgba(51,255,0,0.3);
         }
 
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         html, body {
             height: 100%;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            font-family: var(--font-ui);
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font);
             overflow: hidden;
+        }
+
+        /* CRT scanlines overlay */
+        body::before {
+            content: '';
+            position: fixed; inset: 0; z-index: 99998;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0,0,0,0.08) 2px,
+                rgba(0,0,0,0.08) 4px
+            );
+            pointer-events: none;
+        }
+
+        /* Phosphor vignette */
+        body::after {
+            content: '';
+            position: fixed; inset: 0; z-index: 99997;
+            background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.5) 100%);
+            pointer-events: none;
         }
 
         #app { display: flex; flex-direction: column; height: 100vh; }
@@ -57,85 +76,130 @@
             flex-shrink: 0;
             display: flex;
             align-items: center;
-            gap: 6px;
-            padding: 0 14px;
-            height: 46px;
-            background: var(--bg-toolbar);
+            gap: 4px;
+            padding: 0 12px;
+            height: 44px;
+            background: var(--bg);
             border-bottom: 1px solid var(--border);
             user-select: none;
+            position: relative;
         }
 
-        .toolbar-brand { display: flex; align-items: center; gap: 8px; margin-right: 8px; }
-
-        .brand-icon {
-            width: 26px; height: 26px;
-            background: var(--accent);
-            border-radius: 6px;
-            display: flex; align-items: center; justify-content: center;
+        .toolbar-brand {
+            display: flex; align-items: center; gap: 8px;
+            margin-right: 12px;
         }
-        .brand-icon svg { width: 14px; height: 14px; }
-        .brand-label { font-size: 13px; font-weight: 600; color: var(--text-primary); letter-spacing: 0.02em; }
 
-        .toolbar-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; flex-shrink: 0; }
+        .brand-label {
+            font-size: 13px; font-weight: 700;
+            color: var(--green);
+            text-shadow: var(--glow);
+            letter-spacing: 0.05em;
+            white-space: nowrap;
+        }
+        .brand-label .brand-cursor {
+            display: inline-block;
+            width: 8px; height: 13px;
+            background: var(--green);
+            margin-left: 2px;
+            vertical-align: -1px;
+            animation: blink 1.1s step-end infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        .toolbar-sep {
+            width: 1px; height: 18px;
+            background: var(--border);
+            margin: 0 4px; flex-shrink: 0;
+        }
         .toolbar-group { display: flex; align-items: center; gap: 2px; }
 
         .btn {
             display: flex; align-items: center; gap: 5px;
-            padding: 0 10px; height: 30px;
-            border: none; border-radius: var(--radius-sm);
-            font-family: var(--font-ui); font-size: 12px; font-weight: 500;
+            padding: 0 10px; height: 28px;
+            border: 1px solid var(--border);
+            background: transparent;
+            font-family: var(--font); font-size: 11px; font-weight: 500;
+            color: var(--text-dim);
             cursor: pointer;
-            transition: background var(--transition), color var(--transition), box-shadow var(--transition);
+            transition: color 120ms, border-color 120ms, background 120ms, text-shadow 120ms;
             white-space: nowrap;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
         }
-        .btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+        .btn:before { content: '['; margin-right: 1px; opacity: 0.5; }
+        .btn:after  { content: ']'; margin-left: 1px; opacity: 0.5; }
+        .btn svg { width: 12px; height: 12px; flex-shrink: 0; }
 
-        .btn-ghost { background: transparent; color: var(--text-secondary); }
-        .btn-ghost:hover { background: var(--bg-secondary); color: var(--text-primary); }
+        .btn:hover {
+            color: var(--bg);
+            background: var(--green);
+            border-color: var(--green);
+            text-shadow: none;
+        }
+        .btn:hover:before, .btn:hover:after { opacity: 1; color: var(--bg); }
 
-        .btn-primary { background: var(--accent); color: #fff; }
-        .btn-primary:hover { background: var(--accent-hover); }
-
-        .btn-success { background: var(--success-dim); color: var(--success); }
-        .btn-success:hover { background: rgba(76,175,130,0.22); }
-
-        .btn-warning { background: var(--warning-dim); color: var(--warning); }
-        .btn-warning:hover { background: rgba(240,180,41,0.24); }
-
-        .btn-active-visual {
-            background: var(--warning-dim) !important;
-            color: var(--warning) !important;
-            box-shadow: 0 0 0 1px rgba(240,180,41,0.35);
+        .btn-active {
+            color: var(--amber);
+            border-color: var(--amber);
+            background: var(--amber-dim);
+            text-shadow: 0 0 6px rgba(255,176,0,0.5);
+        }
+        .btn-active:before, .btn-active:after { opacity: 0.7; color: var(--amber); }
+        .btn-active:hover {
+            color: var(--bg);
+            background: var(--amber);
+            border-color: var(--amber);
         }
 
-        .btn-icon { width: 30px; padding: 0; justify-content: center; }
+        .btn-highlight {
+            color: var(--green);
+            border-color: var(--green);
+            background: var(--green-glow);
+            text-shadow: var(--glow-sm);
+        }
+        .btn-highlight:before, .btn-highlight:after { opacity: 0.7; }
+
+        .btn-icon {
+            width: 28px; padding: 0;
+            justify-content: center;
+        }
+        .btn-icon:before, .btn-icon:after { display: none; }
 
         .toolbar-right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
 
         #layout-toggle {
-            display: flex; background: var(--bg-secondary);
-            border-radius: var(--radius-sm); padding: 2px;
+            display: flex; background: transparent;
+            border: 1px solid var(--border);
+            gap: 0;
         }
         .layout-btn {
-            width: 28px; height: 24px; border: none; border-radius: 4px;
+            width: 28px; height: 26px; border: none;
             background: transparent; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
-            transition: background var(--transition);
+            transition: background 120ms, color 120ms;
+            border-right: 1px solid var(--border);
+            color: var(--text-faint);
         }
-        .layout-btn svg { width: 14px; height: 14px; color: var(--text-muted); }
-        .layout-btn.active { background: var(--bg-panel); }
-        .layout-btn.active svg { color: var(--accent); }
-        .layout-btn:not(.active):hover svg { color: var(--text-secondary); }
+        .layout-btn:last-child { border-right: none; }
+        .layout-btn svg { width: 13px; height: 13px; }
+        .layout-btn.active { background: var(--green); color: var(--bg); }
+        .layout-btn:not(.active):hover { background: var(--bg-hover); color: var(--text-dim); }
 
         #filename-input {
-            background: transparent; border: none; outline: none;
-            color: var(--text-secondary); font-family: var(--font-ui);
-            font-size: 12px; font-weight: 500; width: 160px;
-            cursor: pointer; padding: 2px 6px; border-radius: var(--radius-sm);
-            transition: background var(--transition), color var(--transition);
+            background: transparent; border: 1px solid var(--border); outline: none;
+            color: var(--text-dim); font-family: var(--font);
+            font-size: 11px; font-weight: 500; width: 160px;
+            cursor: pointer; padding: 3px 8px;
+            transition: border-color 120ms, color 120ms;
+            letter-spacing: 0.03em;
         }
-        #filename-input:hover { background: var(--bg-secondary); color: var(--text-primary); }
-        #filename-input:focus { background: var(--bg-secondary); color: var(--text-primary); cursor: text; }
+        #filename-input:hover { border-color: var(--green-dim); color: var(--green-text); }
+        #filename-input:focus { border-color: var(--green); color: var(--text); cursor: text; }
 
         /* ─── Main ─── */
         #main { flex: 1; display: flex; min-height: 0; overflow: hidden; }
@@ -148,88 +212,99 @@
 
         .panel-header {
             display: flex; align-items: center; gap: 8px;
-            padding: 0 14px; height: 36px;
+            padding: 0 12px; height: 32px;
             background: var(--bg-panel);
             border-bottom: 1px solid var(--border);
             flex-shrink: 0;
         }
         .panel-title {
-            font-size: 11px; font-weight: 600;
-            letter-spacing: 0.08em; text-transform: uppercase;
-            color: var(--text-muted);
+            font-size: 10px; font-weight: 600;
+            letter-spacing: 0.12em; text-transform: uppercase;
+            color: var(--text-dim);
         }
+        .panel-title::before { content: '// '; opacity: 0.5; }
+
         .panel-pill {
-            font-size: 10px; padding: 1px 7px;
-            border-radius: 99px; font-weight: 600;
+            font-size: 9px; padding: 2px 6px;
+            font-weight: 700; letter-spacing: 0.08em;
+            text-transform: uppercase;
         }
-        .pill-html { background: rgba(240,100,70,0.14); color: #f07050; }
-        .pill-live { background: var(--success-dim); color: var(--success); }
-        .pill-visual { background: var(--warning-dim); color: var(--warning); }
-        .panel-actions { margin-left: auto; display: flex; gap: 2px; }
+        .pill-html { border: 1px solid #5a2a00; color: #ff6a00; background: rgba(255,106,0,0.08); }
+        .pill-live { border: 1px solid var(--green-dim); color: var(--green); background: var(--green-glow); }
+        .pill-visual { border: 1px solid rgba(255,176,0,0.4); color: var(--amber); background: var(--amber-dim); }
+        .pill-live::before { content: '● '; animation: blink 1.4s step-end infinite; }
+
+        .panel-actions { margin-left: auto; display: flex; gap: 4px; }
 
         /* ─── Editor ─── */
         #editor-wrap { flex: 1; display: flex; overflow: hidden; position: relative; }
 
         #line-numbers {
-            flex-shrink: 0; width: 46px; padding: 16px 12px 16px 0;
+            flex-shrink: 0; width: 48px; padding: 14px 10px 14px 0;
             background: var(--bg-panel); text-align: right;
-            font-family: var(--font-mono); font-size: 13px; line-height: 1.7;
-            color: var(--line-num); overflow: hidden; user-select: none;
+            font-family: var(--font); font-size: 12px; line-height: 1.75;
+            color: var(--text-faint); overflow: hidden; user-select: none;
+            border-right: 1px solid var(--border);
         }
         #line-numbers::-webkit-scrollbar { display: none; }
 
         #editor {
-            flex: 1; padding: 16px 16px 16px 12px;
+            flex: 1; padding: 14px 14px 14px 12px;
             border: none; outline: none; resize: none;
-            background: var(--bg-panel); color: var(--text-primary);
-            font-family: var(--font-mono); font-size: 13px; line-height: 1.7;
+            background: var(--bg-panel); color: var(--green-text);
+            font-family: var(--font); font-size: 12px; line-height: 1.75;
             tab-size: 2; white-space: pre; overflow-wrap: normal;
-            overflow: auto; caret-color: var(--accent);
-            scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent;
+            overflow: auto; caret-color: var(--green);
+            scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+            text-shadow: 0 0 3px rgba(51,255,0,0.2);
         }
-        #editor::selection { background: var(--selection); }
+        #editor::selection { background: rgba(51,255,0,0.2); }
         #editor::-webkit-scrollbar { width: 6px; height: 6px; }
         #editor::-webkit-scrollbar-track { background: transparent; }
-        #editor::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+        #editor::-webkit-scrollbar-thumb { background: var(--border); }
 
         #hint-container {
-            position: absolute; bottom: 8px; right: 14px;
+            position: absolute; bottom: 8px; right: 12px;
             pointer-events: none; z-index: 10;
         }
         .hint-pill {
-            background: var(--bg-secondary); border: 1px solid var(--border);
-            color: var(--text-muted); font-size: 10px; padding: 3px 8px; border-radius: 99px;
+            background: var(--bg); border: 1px solid var(--border);
+            color: var(--text-faint); font-size: 9px; padding: 3px 8px;
+            letter-spacing: 0.06em;
         }
         kbd {
             display: inline-flex; align-items: center;
-            background: var(--border); color: var(--text-secondary);
-            border-radius: 3px; padding: 0 4px;
-            font-size: 10px; font-family: var(--font-mono); margin: 0 1px;
+            background: var(--muted); color: var(--text-dim);
+            padding: 0 4px;
+            font-size: 9px; font-family: var(--font); margin: 0 1px;
         }
 
         /* ─── Status bar ─── */
         #statusbar {
             flex-shrink: 0; display: flex; align-items: center; gap: 10px;
-            padding: 0 14px; height: 24px;
-            background: var(--bg-toolbar); border-top: 1px solid var(--border);
-            font-size: 11px; color: var(--text-muted);
+            padding: 0 12px; height: 22px;
+            background: var(--bg); border-top: 1px solid var(--border);
+            font-size: 10px; color: var(--text-faint);
+            letter-spacing: 0.05em;
         }
         .status-item { display: flex; align-items: center; gap: 4px; }
-        .status-dot { width: 6px; height: 6px; border-radius: 50%; }
+        .status-sep { color: var(--border); }
+        #status-dot-char { color: var(--green); animation: blink 1.4s step-end infinite; }
+        #status-dot-char.dirty { color: var(--amber); }
 
         /* ─── Resizer ─── */
         #resizer {
-            flex-shrink: 0; width: 4px; background: var(--border);
-            cursor: col-resize; transition: background var(--transition);
+            flex-shrink: 0; width: 3px; background: var(--border);
+            cursor: col-resize; transition: background 120ms;
         }
-        #resizer:hover, #resizer.dragging { background: var(--accent); }
+        #resizer:hover, #resizer.dragging { background: var(--green); box-shadow: var(--glow-sm); }
 
         /* ─── Preview iframe ─── */
         #preview-frame { flex: 1; border: none; background: #fff; display: block; }
 
         /* ─── Visual edit container ─── */
         #visual-wrap {
-            flex: 1; overflow: auto; background: #f0f2f5;
+            flex: 1; overflow: auto; background: #0a0a0a;
             display: none; position: relative;
         }
 
@@ -240,38 +315,37 @@
             position: relative;
         }
 
-        /* Edit mode: highlight hovered element */
         #visual-canvas.edit-active [data-ve-idx]:hover {
-            outline: 2px solid rgba(108,140,255,0.7);
+            outline: 1px solid var(--amber);
             outline-offset: 1px;
             cursor: text;
         }
         #visual-canvas.edit-active [data-ve-idx]:focus {
-            outline: 2px solid var(--accent);
+            outline: 1px solid var(--green);
             outline-offset: 1px;
         }
 
-        /* Visual editing active indicator bar */
         #visual-tip {
             position: sticky; top: 0; z-index: 100;
-            background: rgba(240,180,41,0.95);
-            color: #1a1200;
-            font-size: 11px; font-weight: 600;
-            padding: 5px 14px;
+            background: var(--bg);
+            border-bottom: 1px solid var(--amber);
+            color: var(--amber);
+            font-size: 10px; font-weight: 600;
+            padding: 5px 12px;
             display: none;
             align-items: center; gap: 8px;
-            backdrop-filter: blur(4px);
+            text-transform: uppercase; letter-spacing: 0.08em;
+            text-shadow: 0 0 6px rgba(255,176,0,0.5);
         }
-        #visual-tip .tip-dot {
-            width: 7px; height: 7px; border-radius: 50%;
-            background: rgba(0,0,0,0.35); flex-shrink: 0;
-        }
+        #visual-tip::before { content: '>> '; opacity: 0.6; }
         #visual-tip .tip-esc {
             margin-left: auto;
-            background: rgba(0,0,0,0.12);
-            border-radius: 4px; padding: 1px 6px;
-            font-size: 10px; cursor: pointer;
+            border: 1px solid var(--amber);
+            padding: 1px 8px;
+            font-size: 9px; cursor: pointer;
+            transition: background 120ms;
         }
+        #visual-tip .tip-esc:hover { background: var(--amber); color: var(--bg); }
 
         /* ─── Layout modes ─── */
         #main.editor-only #preview-panel,
@@ -284,221 +358,202 @@
 
         /* ─── Toast ─── */
         #toast {
-            position: fixed; bottom: 40px; left: 50%;
-            transform: translateX(-50%) translateY(20px);
-            background: var(--bg-secondary); border: 1px solid var(--border-active);
-            color: var(--text-primary); padding: 8px 16px;
-            border-radius: var(--radius); font-size: 12px; font-weight: 500;
+            position: fixed; bottom: 36px; left: 50%;
+            transform: translateX(-50%) translateY(14px);
+            background: var(--bg);
+            border: 1px solid var(--green);
+            color: var(--green);
+            padding: 7px 16px;
+            font-family: var(--font);
+            font-size: 11px; font-weight: 500;
             pointer-events: none; opacity: 0;
-            transition: opacity 200ms, transform 200ms;
-            z-index: 9999; white-space: nowrap;
+            transition: opacity 160ms, transform 160ms;
+            z-index: 99999; white-space: nowrap;
+            text-shadow: var(--glow-sm);
+            letter-spacing: 0.06em;
         }
         #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-        /* ─── Save Modal ─── */
-        #save-modal-backdrop {
+        /* ─── Modal base ─── */
+        .modal-backdrop {
             position: fixed; inset: 0; z-index: 10000;
-            background: rgba(0,0,0,0.55);
-            backdrop-filter: blur(3px);
+            background: rgba(0,0,0,0.8);
             display: flex; align-items: center; justify-content: center;
             opacity: 0; pointer-events: none;
-            transition: opacity 180ms;
+            transition: opacity 160ms;
         }
-        #save-modal-backdrop.open { opacity: 1; pointer-events: all; }
+        .modal-backdrop.open { opacity: 1; pointer-events: all; }
 
-        #save-modal {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-active);
-            border-radius: 12px;
-            padding: 24px 24px 20px;
-            width: 340px;
-            transform: translateY(12px) scale(0.97);
-            transition: transform 200ms cubic-bezier(0.34,1.56,0.64,1);
-            box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+        .modal-box {
+            background: var(--bg);
+            border: 1px solid var(--green);
+            padding: 0;
+            width: 360px;
+            transform: translateY(10px);
+            transition: transform 180ms cubic-bezier(0.34,1.4,0.64,1);
+            box-shadow: 0 0 40px rgba(51,255,0,0.15), inset 0 0 0 1px rgba(51,255,0,0.06);
         }
-        #save-modal-backdrop.open #save-modal {
-            transform: translateY(0) scale(1);
-        }
+        .modal-backdrop.open .modal-box { transform: translateY(0); }
 
-        .modal-title {
-            font-size: 14px; font-weight: 700;
-            color: var(--text-primary);
-            margin-bottom: 6px;
+        .modal-titlebar {
+            display: flex; align-items: center;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-panel);
+            font-size: 11px; font-weight: 700;
+            color: var(--green); letter-spacing: 0.1em; text-transform: uppercase;
+            text-shadow: var(--glow-sm);
         }
+        .modal-titlebar::before { content: '+-- '; opacity: 0.5; }
+        .modal-titlebar::after { content: ' --+'; opacity: 0.5; }
+
+        .modal-body { padding: 18px 16px; }
+
         .modal-sub {
-            font-size: 11px; color: var(--text-muted);
-            margin-bottom: 18px; line-height: 1.5;
+            font-size: 10px; color: var(--text-faint);
+            margin-bottom: 16px; line-height: 1.6;
+            letter-spacing: 0.04em;
         }
+        .modal-sub::before { content: '$ '; color: var(--text-dim); }
+
+        /* ─── Save Modal ─── */
+        #save-modal-backdrop { z-index: 10000; }
 
         .fmt-options {
-            display: flex; flex-direction: column; gap: 8px;
-            margin-bottom: 20px;
+            display: flex; flex-direction: column; gap: 6px;
+            margin-bottom: 18px;
         }
 
         .fmt-option {
             display: flex; align-items: center; gap: 12px;
-            padding: 11px 14px;
-            border: 1.5px solid var(--border);
-            border-radius: 8px;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
             cursor: pointer;
-            transition: border-color var(--transition), background var(--transition);
+            transition: border-color 120ms, background 120ms;
             position: relative;
         }
-        .fmt-option:hover { border-color: var(--border-active); background: rgba(255,255,255,0.02); }
+        .fmt-option:hover { border-color: var(--green-dim); background: var(--bg-hover); }
         .fmt-option.selected {
-            border-color: var(--accent);
-            background: var(--accent-dim);
+            border-color: var(--green);
+            background: rgba(51,255,0,0.05);
+        }
+        .fmt-option.selected::before {
+            content: '>';
+            position: absolute; left: -1px;
+            color: var(--green); font-size: 12px;
+            text-shadow: var(--glow-sm);
         }
 
         .fmt-badge {
-            width: 36px; height: 36px; border-radius: 8px;
+            width: 36px; height: 28px;
             display: flex; align-items: center; justify-content: center;
-            font-size: 11px; font-weight: 800; letter-spacing: 0.04em;
-            flex-shrink: 0;
+            font-size: 9px; font-weight: 800; letter-spacing: 0.06em;
+            flex-shrink: 0; border: 1px solid currentColor;
+            text-transform: uppercase;
         }
-        .badge-html { background: rgba(240,112,80,0.16); color: #f07050; }
-        .badge-pdf  { background: rgba(108,140,255,0.16); color: var(--accent); }
-        .badge-jpg  { background: rgba(76,175,130,0.16);  color: var(--success); }
+        .badge-html { color: #ff6a00; border-color: rgba(255,106,0,0.4); background: rgba(255,106,0,0.08); }
+        .badge-pdf  { color: var(--green); border-color: var(--green-dim); background: var(--green-glow); }
+        .badge-jpg  { color: var(--amber); border-color: rgba(255,176,0,0.4); background: var(--amber-dim); }
+        .badge-link { color: #00d4ff; border-color: rgba(0,212,255,0.4); background: rgba(0,212,255,0.08); }
 
         .fmt-info { flex: 1; }
-        .fmt-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
-        .fmt-desc { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+        .fmt-name {
+            font-size: 11px; font-weight: 600; color: var(--text);
+            letter-spacing: 0.04em; text-transform: uppercase;
+        }
+        .fmt-desc { font-size: 10px; color: var(--text-faint); margin-top: 2px; }
 
         .fmt-radio {
-            width: 16px; height: 16px; border-radius: 50%;
-            border: 2px solid var(--border-active);
+            width: 14px; height: 14px;
+            border: 1px solid var(--border);
             flex-shrink: 0;
             display: flex; align-items: center; justify-content: center;
-            transition: border-color var(--transition);
+            transition: border-color 120ms;
         }
-        .fmt-option.selected .fmt-radio {
-            border-color: var(--accent);
-        }
+        .fmt-option.selected .fmt-radio { border-color: var(--green); }
         .fmt-radio-dot {
-            width: 7px; height: 7px; border-radius: 50%;
-            background: var(--accent);
+            width: 6px; height: 6px;
+            background: var(--green);
             transform: scale(0);
-            transition: transform 160ms cubic-bezier(0.34,1.56,0.64,1);
+            transition: transform 140ms cubic-bezier(0.34,1.56,0.64,1);
         }
         .fmt-option.selected .fmt-radio-dot { transform: scale(1); }
 
         .modal-footer {
-            display: flex; justify-content: flex-end; gap: 8px;
+            display: flex; justify-content: flex-end; gap: 6px;
+            padding: 12px 16px;
+            border-top: 1px solid var(--border);
+            background: var(--bg-panel);
         }
         .modal-btn {
-            height: 32px; padding: 0 16px;
-            border: none; border-radius: var(--radius-sm);
-            font-family: var(--font-ui); font-size: 12px; font-weight: 600;
-            cursor: pointer;
-            transition: background var(--transition), color var(--transition);
-        }
-        .modal-btn-cancel {
-            background: transparent; color: var(--text-secondary);
+            height: 28px; padding: 0 14px;
             border: 1px solid var(--border);
+            background: transparent;
+            font-family: var(--font); font-size: 10px; font-weight: 600;
+            cursor: pointer; letter-spacing: 0.08em; text-transform: uppercase;
+            color: var(--text-dim);
+            transition: background 120ms, color 120ms, border-color 120ms;
         }
-        .modal-btn-cancel:hover { background: var(--bg-panel); color: var(--text-primary); }
+        .modal-btn::before { content: '[ '; }
+        .modal-btn::after  { content: ' ]'; }
+        .modal-btn-cancel:hover { background: var(--bg-hover); color: var(--text); }
         .modal-btn-confirm {
-            background: var(--accent); color: #fff;
+            color: var(--green); border-color: var(--green);
+            text-shadow: var(--glow-sm);
         }
-        .modal-btn-confirm:hover { background: var(--accent-hover); }
-
-        /* ─── Token Config Modal ─── */
-        #token-modal-backdrop {
-            position: fixed; inset: 0; z-index: 10001;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(4px);
-            display: flex; align-items: center; justify-content: center;
-            opacity: 0; pointer-events: none;
-            transition: opacity 180ms;
+        .modal-btn-confirm:hover {
+            background: var(--green); color: var(--bg);
+            text-shadow: none;
         }
-        #token-modal-backdrop.open { opacity: 1; pointer-events: all; }
-        #token-modal {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-active);
-            border-radius: 12px;
-            padding: 24px;
-            width: 380px;
-            transform: translateY(12px) scale(0.97);
-            transition: transform 200ms cubic-bezier(0.34,1.56,0.64,1);
-            box-shadow: 0 24px 60px rgba(0,0,0,0.5);
-        }
-        #token-modal-backdrop.open #token-modal { transform: translateY(0) scale(1); }
-        .token-modal-title { font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; }
-        .token-modal-sub { font-size: 11px; color: var(--text-muted); margin-bottom: 16px; line-height: 1.6; }
-        .token-modal-sub a { color: var(--accent); text-decoration: none; }
-        .token-modal-sub a:hover { text-decoration: underline; }
-        .token-input-wrap { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
-        .token-input-label { font-size: 11px; font-weight: 600; color: var(--text-secondary); }
-        .token-input-row { display: flex; gap: 6px; }
-        #token-input, #repo-input {
-            flex: 1; height: 32px; padding: 0 10px;
-            background: var(--bg-panel); border: 1px solid var(--border);
-            border-radius: var(--radius-sm); color: var(--text-primary);
-            font-family: var(--font-mono); font-size: 12px; outline: none;
-            transition: border-color var(--transition);
-        }
-        #token-input:focus, #repo-input:focus { border-color: var(--accent); }
-        .token-hint { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
 
         /* ─── Link Result Modal ─── */
-        #link-modal-backdrop {
-            position: fixed; inset: 0; z-index: 10002;
-            background: rgba(0,0,0,0.55);
-            backdrop-filter: blur(3px);
-            display: flex; align-items: center; justify-content: center;
-            opacity: 0; pointer-events: none;
-            transition: opacity 180ms;
-        }
-        #link-modal-backdrop.open { opacity: 1; pointer-events: all; }
-        #link-modal {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-active);
-            border-radius: 12px; padding: 24px;
-            width: 400px;
-            transform: translateY(12px) scale(0.97);
-            transition: transform 200ms cubic-bezier(0.34,1.56,0.64,1);
-            box-shadow: 0 24px 60px rgba(0,0,0,0.5);
-        }
-        #link-modal-backdrop.open #link-modal { transform: translateY(0) scale(1); }
-        .link-modal-icon {
-            width: 40px; height: 40px; border-radius: 10px;
-            background: var(--success-dim); display: flex;
-            align-items: center; justify-content: center; margin-bottom: 14px;
-        }
-        .link-modal-icon svg { width: 20px; height: 20px; color: var(--success); }
-        .link-modal-title { font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
-        .link-modal-sub { font-size: 11px; color: var(--text-muted); margin-bottom: 16px; }
+        #link-modal-backdrop { z-index: 10002; }
+        #link-modal { width: 420px; }
+
         .link-result-row {
             display: flex; gap: 6px; align-items: center;
             background: var(--bg-panel); border: 1px solid var(--border);
-            border-radius: var(--radius-sm); padding: 8px 12px;
-            margin-bottom: 16px;
+            padding: 8px 10px;
+            margin-bottom: 14px;
+        }
+        .link-prompt {
+            color: var(--text-dim); font-size: 11px; flex-shrink: 0;
         }
         #link-result-url {
-            flex: 1; font-family: var(--font-mono); font-size: 11px;
-            color: var(--accent); word-break: break-all;
+            flex: 1; font-family: var(--font); font-size: 10px;
+            color: var(--green); word-break: break-all;
             user-select: all; cursor: text;
+            text-shadow: var(--glow-sm);
         }
         .btn-copy-link {
-            flex-shrink: 0; height: 28px; padding: 0 10px;
-            background: var(--accent-dim); border: none; border-radius: 4px;
-            color: var(--accent); font-size: 11px; font-weight: 600;
-            cursor: pointer; font-family: var(--font-ui);
-            transition: background var(--transition);
+            flex-shrink: 0; height: 24px; padding: 0 10px;
+            background: transparent; border: 1px solid var(--green-dim);
+            color: var(--text-dim); font-size: 9px; font-weight: 600;
+            cursor: pointer; font-family: var(--font);
+            letter-spacing: 0.08em; text-transform: uppercase;
+            transition: background 120ms, color 120ms;
         }
-        .btn-copy-link:hover { background: rgba(108,140,255,0.22); }
+        .btn-copy-link:hover { background: var(--green); color: var(--bg); border-color: var(--green); }
+
         .btn-open-link {
             display: flex; align-items: center; justify-content: center; gap: 6px;
-            width: 100%; height: 34px; border: none; border-radius: var(--radius-sm);
-            background: var(--accent); color: #fff;
-            font-family: var(--font-ui); font-size: 12px; font-weight: 600;
-            cursor: pointer; transition: background var(--transition);
+            width: 100%; height: 32px; border: 1px solid var(--green);
+            background: transparent;
+            font-family: var(--font); font-size: 10px; font-weight: 600;
+            cursor: pointer; letter-spacing: 0.08em; text-transform: uppercase;
+            color: var(--green); text-shadow: var(--glow-sm);
+            transition: background 120ms, color 120ms;
         }
-        .btn-open-link:hover { background: var(--accent-hover); }
-        .btn-open-link svg { width: 13px; height: 13px; }
-        .link-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
-        .link-manage { font-size: 11px; color: var(--text-muted); cursor: pointer; }
-        .link-manage:hover { color: var(--text-secondary); text-decoration: underline; }
+        .btn-open-link:hover { background: var(--green); color: var(--bg); text-shadow: none; }
+        .btn-open-link svg { width: 12px; height: 12px; }
+
+        .link-footer {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-top: 12px;
+            padding-top: 12px; border-top: 1px solid var(--border);
+        }
+        .link-note { font-size: 9px; color: var(--text-faint); letter-spacing: 0.05em; }
+        .link-note::before { content: '// '; }
     </style>
 </head>
 <body>
@@ -507,12 +562,7 @@
     <!-- Toolbar -->
     <div id="toolbar">
         <div class="toolbar-brand">
-            <div class="brand-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
-                </svg>
-            </div>
-            <span class="brand-label">HTML Editor</span>
+            <span class="brand-label">HTML_EDITOR<span class="brand-cursor"></span></span>
         </div>
 
         <div class="toolbar-sep"></div>
@@ -520,20 +570,20 @@
         <div class="toolbar-sep"></div>
 
         <div class="toolbar-group">
-            <button class="btn btn-ghost" id="btn-new" title="新建 (Ctrl+Shift+N)">
+            <button class="btn" id="btn-new" title="新建 (Ctrl+Shift+N)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                     <polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/>
                 </svg>
                 新建
             </button>
-            <button class="btn btn-ghost" id="btn-open" title="打开文件 (Ctrl+O)">
+            <button class="btn" id="btn-open" title="打开文件 (Ctrl+O)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
                 </svg>
                 打开
             </button>
-            <button class="btn btn-success" id="btn-save" title="保存文件 (Ctrl+S)">
+            <button class="btn btn-highlight" id="btn-save" title="保存文件 (Ctrl+S)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
                     <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
@@ -545,12 +595,12 @@
         <div class="toolbar-sep"></div>
 
         <div class="toolbar-group">
-            <button class="btn btn-ghost btn-icon" id="btn-undo" title="撤销 (Ctrl+Z)">
+            <button class="btn btn-icon" id="btn-undo" title="撤销 (Ctrl+Z)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/>
                 </svg>
             </button>
-            <button class="btn btn-ghost btn-icon" id="btn-redo" title="重做 (Ctrl+Y)">
+            <button class="btn btn-icon" id="btn-redo" title="重做 (Ctrl+Y)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/>
                 </svg>
@@ -560,14 +610,14 @@
         <div class="toolbar-sep"></div>
 
         <div class="toolbar-group">
-            <button class="btn btn-ghost" id="btn-format" title="格式化代码 (Alt+Shift+F)">
+            <button class="btn" id="btn-format" title="格式化代码 (Alt+Shift+F)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="21" y1="10" x2="7" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/>
                     <line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="7" y2="18"/>
                 </svg>
                 格式化
             </button>
-            <button class="btn btn-ghost" id="btn-clear" title="清空内容">
+            <button class="btn" id="btn-clear" title="清空内容">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
                     <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
@@ -578,8 +628,7 @@
 
         <div class="toolbar-sep"></div>
 
-        <!-- Visual Edit Toggle -->
-        <button class="btn btn-warning" id="btn-visual-edit" title="在预览上直接编辑文字 (Ctrl+E)">
+        <button class="btn" id="btn-visual-edit" title="在预览上直接编辑文字 (Ctrl+E)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -589,7 +638,7 @@
 
         <div class="toolbar-sep"></div>
 
-        <button class="btn btn-ghost" id="btn-fullscreen-preview" title="在新窗口预览">
+        <button class="btn" id="btn-fullscreen-preview" title="在新窗口预览">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
                 <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
@@ -601,19 +650,19 @@
             <div id="layout-toggle">
                 <button class="layout-btn" id="lay-editor" title="仅编辑器">
                     <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <rect x="2" y="2" width="14" height="14" rx="1.5"/>
+                        <rect x="2" y="2" width="14" height="14"/>
                         <line x1="2" y1="6" x2="16" y2="6"/>
                     </svg>
                 </button>
                 <button class="layout-btn active" id="lay-split" title="分栏视图">
                     <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <rect x="2" y="2" width="14" height="14" rx="1.5"/>
+                        <rect x="2" y="2" width="14" height="14"/>
                         <line x1="9" y1="2" x2="9" y2="16"/>
                     </svg>
                 </button>
                 <button class="layout-btn" id="lay-preview" title="仅预览">
                     <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <rect x="2" y="2" width="14" height="14" rx="1.5"/>
+                        <rect x="2" y="2" width="14" height="14"/>
                         <path d="M5 9 Q9 5 13 9 Q9 13 5 9z"/>
                         <circle cx="9" cy="9" r="1.5" fill="currentColor" stroke="none"/>
                     </svg>
@@ -631,7 +680,7 @@
                 <span class="panel-title">源码</span>
                 <span class="panel-pill pill-html">HTML</span>
                 <div class="panel-actions">
-                    <button class="btn btn-ghost btn-icon" id="btn-copy" title="复制全部">
+                    <button class="btn btn-icon" id="btn-copy" title="复制全部">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="9" y="9" width="13" height="13" rx="2"/>
                             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
@@ -643,22 +692,22 @@
                 <div id="line-numbers"></div>
                 <textarea id="editor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
                 <div id="hint-container">
-                    <span class="hint-pill"><kbd>Tab</kbd> 缩进 &nbsp;·&nbsp; <kbd>Ctrl</kbd><kbd>S</kbd> 保存 &nbsp;·&nbsp; <kbd>Ctrl</kbd><kbd>E</kbd> 可视编辑</span>
+                    <span class="hint-pill"><kbd>Tab</kbd> indent &nbsp;·&nbsp; <kbd>Ctrl</kbd><kbd>S</kbd> save &nbsp;·&nbsp; <kbd>Ctrl</kbd><kbd>E</kbd> visual</span>
                 </div>
             </div>
             <div id="statusbar">
                 <div class="status-item">
-                    <div class="status-dot" id="status-dot" style="background:var(--success)"></div>
-                    <span id="status-text">就绪</span>
+                    <span id="status-dot-char">■</span>
+                    <span id="status-text">READY</span>
                 </div>
-                <span>|</span>
-                <span id="line-count">1 行</span>
-                <span>|</span>
-                <span id="char-count">0 字符</span>
-                <span>|</span>
-                <span id="cursor-pos">第 1 行，第 1 列</span>
-                <span>|</span>
-                <span id="mode-indicator">源码模式</span>
+                <span class="status-sep">|</span>
+                <span id="line-count">1 LINES</span>
+                <span class="status-sep">|</span>
+                <span id="char-count">0 CHARS</span>
+                <span class="status-sep">|</span>
+                <span id="cursor-pos">L1:C1</span>
+                <span class="status-sep">|</span>
+                <span id="mode-indicator">SOURCE</span>
             </div>
         </div>
 
@@ -669,9 +718,9 @@
         <div id="preview-panel">
             <div class="panel-header" id="preview-header">
                 <span class="panel-title" id="preview-panel-title">预览</span>
-                <span class="panel-pill pill-live" id="preview-pill">实时</span>
+                <span class="panel-pill pill-live" id="preview-pill">LIVE</span>
                 <div class="panel-actions">
-                    <button class="btn btn-ghost btn-icon" id="btn-refresh" title="刷新预览">
+                    <button class="btn btn-icon" id="btn-refresh" title="刷新预览">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="23 4 23 10 17 10"/>
                             <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
@@ -680,15 +729,12 @@
                 </div>
             </div>
 
-            <!-- Normal preview iframe -->
             <iframe id="preview-frame" sandbox="allow-scripts allow-modals allow-forms allow-same-origin"></iframe>
 
-            <!-- Visual edit container -->
             <div id="visual-wrap">
                 <div id="visual-tip">
-                    <div class="tip-dot"></div>
-                    可视编辑模式 · 点击任意文字直接修改，改动实时同步到源码
-                    <span class="tip-esc" id="tip-exit">退出编辑</span>
+                    VISUAL EDIT MODE &nbsp;·&nbsp; 点击文字直接修改，改动实时同步到源码
+                    <span class="tip-esc" id="tip-exit">ESC / EXIT</span>
                 </div>
                 <div id="visual-canvas"></div>
             </div>
@@ -701,42 +747,44 @@
 <div id="toast"></div>
 
 <!-- Save Format Modal -->
-<div id="save-modal-backdrop">
-    <div id="save-modal">
-        <div class="modal-title">导出文件</div>
-        <div class="modal-sub">选择保存格式，然后点击确认下载</div>
-        <div class="fmt-options">
-            <div class="fmt-option selected" data-fmt="html">
-                <div class="fmt-badge badge-html">HTML</div>
-                <div class="fmt-info">
-                    <div class="fmt-name">HTML 源码</div>
-                    <div class="fmt-desc">保存完整 HTML 文件，可再次编辑</div>
+<div id="save-modal-backdrop" class="modal-backdrop">
+    <div id="save-modal" class="modal-box">
+        <div class="modal-titlebar">EXPORT FILE</div>
+        <div class="modal-body">
+            <div class="modal-sub">选择输出格式</div>
+            <div class="fmt-options">
+                <div class="fmt-option selected" data-fmt="html">
+                    <div class="fmt-badge badge-html">HTML</div>
+                    <div class="fmt-info">
+                        <div class="fmt-name">HTML Source</div>
+                        <div class="fmt-desc">保存完整 HTML 文件，可再次编辑</div>
+                    </div>
+                    <div class="fmt-radio"><div class="fmt-radio-dot"></div></div>
                 </div>
-                <div class="fmt-radio"><div class="fmt-radio-dot"></div></div>
-            </div>
-            <div class="fmt-option" data-fmt="pdf">
-                <div class="fmt-badge badge-pdf">PDF</div>
-                <div class="fmt-info">
-                    <div class="fmt-name">PDF 文档</div>
-                    <div class="fmt-desc">通过浏览器打印功能另存为 PDF</div>
+                <div class="fmt-option" data-fmt="pdf">
+                    <div class="fmt-badge badge-pdf">PDF</div>
+                    <div class="fmt-info">
+                        <div class="fmt-name">PDF Document</div>
+                        <div class="fmt-desc">截图渲染为矢量 PDF 文档</div>
+                    </div>
+                    <div class="fmt-radio"><div class="fmt-radio-dot"></div></div>
                 </div>
-                <div class="fmt-radio"><div class="fmt-radio-dot"></div></div>
-            </div>
-            <div class="fmt-option" data-fmt="jpg">
-                <div class="fmt-badge badge-jpg">JPG</div>
-                <div class="fmt-info">
-                    <div class="fmt-name">JPG 图片</div>
-                    <div class="fmt-desc">将页面截图保存为图片文件</div>
+                <div class="fmt-option" data-fmt="jpg">
+                    <div class="fmt-badge badge-jpg">JPG</div>
+                    <div class="fmt-info">
+                        <div class="fmt-name">JPG Image</div>
+                        <div class="fmt-desc">将页面截图保存为图片文件</div>
+                    </div>
+                    <div class="fmt-radio"><div class="fmt-radio-dot"></div></div>
                 </div>
-                <div class="fmt-radio"><div class="fmt-radio-dot"></div></div>
-            </div>
-            <div class="fmt-option" data-fmt="link">
-                <div class="fmt-badge" style="background:rgba(76,175,130,0.16);color:#4caf82;font-size:9px;">LINK</div>
-                <div class="fmt-info">
-                    <div class="fmt-name">生成链接</div>
-                    <div class="fmt-desc">发布到 GitHub Pages，生成可分享的访问链接</div>
+                <div class="fmt-option" data-fmt="link">
+                    <div class="fmt-badge badge-link">URL</div>
+                    <div class="fmt-info">
+                        <div class="fmt-name">Share Link</div>
+                        <div class="fmt-desc">压缩 HTML 进 URL，零服务器分享</div>
+                    </div>
+                    <div class="fmt-radio"><div class="fmt-radio-dot"></div></div>
                 </div>
-                <div class="fmt-radio"><div class="fmt-radio-dot"></div></div>
             </div>
         </div>
         <div class="modal-footer">
@@ -747,44 +795,40 @@
 </div>
 
 <!-- Link Result Modal -->
-<div id="link-modal-backdrop">
-    <div id="link-modal">
-        <div class="link-modal-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-            </svg>
-        </div>
-        <div class="link-modal-title">链接已生成！</div>
-        <div class="link-modal-sub">直接把链接发给任何人，打开即可查看页面，无需任何账号</div>
-        <div class="link-result-row">
-            <span id="link-result-url"></span>
-            <button class="btn-copy-link" id="btn-copy-link">复制</button>
-        </div>
-        <button class="btn-open-link" id="btn-open-link">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
-            </svg>
-            在浏览器中打开
-        </button>
-        <div class="link-footer">
-            <span class="link-manage" style="color:var(--text-muted);font-size:11px;">链接内容即页面数据，无需服务器</span>
-            <button class="modal-btn modal-btn-cancel" id="link-modal-close" style="height:28px;font-size:11px;">关闭</button>
+<div id="link-modal-backdrop" class="modal-backdrop">
+    <div id="link-modal" class="modal-box">
+        <div class="modal-titlebar">LINK GENERATED</div>
+        <div class="modal-body">
+            <div class="modal-sub">链接已生成，无需账号，打开即可查看页面</div>
+            <div class="link-result-row">
+                <span class="link-prompt">$&nbsp;</span>
+                <span id="link-result-url"></span>
+                <button class="btn-copy-link" id="btn-copy-link">COPY</button>
+            </div>
+            <button class="btn-open-link" id="btn-open-link">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                    <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+                </svg>
+                OPEN IN BROWSER
+            </button>
+            <div class="link-footer">
+                <span class="link-note">链接内容即页面数据，无需服务器</span>
+                <button class="modal-btn modal-btn-cancel" id="link-modal-close" style="height:24px;font-size:9px;">关闭</button>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
 (function () {
-    /* ─── DOM refs ─── */
     const editor        = document.getElementById('editor');
     const previewFrame  = document.getElementById('preview-frame');
     const lineNumbers   = document.getElementById('line-numbers');
     const charCount     = document.getElementById('char-count');
     const lineCount     = document.getElementById('line-count');
     const cursorPos     = document.getElementById('cursor-pos');
-    const statusDot     = document.getElementById('status-dot');
+    const statusDotChar = document.getElementById('status-dot-char');
     const statusText    = document.getElementById('status-text');
     const modeIndicator = document.getElementById('mode-indicator');
     const toast         = document.getElementById('toast');
@@ -806,27 +850,33 @@
     let suppressMutate  = false;
 
     const saveBackdrop  = document.getElementById('save-modal-backdrop');
+    const modalConfirmBtn = document.getElementById('modal-confirm');
     let selectedFmt     = 'html';
+
+    function updateConfirmBtn(fmt) {
+        modalConfirmBtn.textContent = fmt === 'link' ? '复制链接' : '确认导出';
+    }
 
     document.querySelectorAll('.fmt-option').forEach(opt => {
         opt.addEventListener('click', () => {
             document.querySelectorAll('.fmt-option').forEach(o => o.classList.remove('selected'));
             opt.classList.add('selected');
             selectedFmt = opt.dataset.fmt;
+            updateConfirmBtn(selectedFmt);
         });
     });
 
     document.getElementById('modal-cancel').addEventListener('click', () => {
         saveBackdrop.classList.remove('open');
+        selectedFmt = 'html';
+        updateConfirmBtn('html');
     });
 
     saveBackdrop.addEventListener('click', (e) => {
         if (e.target === saveBackdrop) saveBackdrop.classList.remove('open');
     });
 
-    /* ══════════════════════════════
-       SECTION: Generate Link (URL hash, zero config)
-    ══════════════════════════════ */
+    /* ── Generate Link ── */
     const linkBackdrop  = document.getElementById('link-modal-backdrop');
     const linkResultUrl = document.getElementById('link-result-url');
 
@@ -838,29 +888,53 @@
     });
 
     document.getElementById('btn-copy-link').addEventListener('click', () => {
-        navigator.clipboard.writeText(linkResultUrl.textContent).then(() => showToast('✓ 链接已复制'));
+        const text = linkResultUrl.dataset.fullUrl || linkResultUrl.textContent;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text)
+                .then(() => showToast('[OK] 链接已复制'))
+                .catch(() => fallbackCopy(text));
+        } else {
+            fallbackCopy(text);
+        }
     });
 
+    function fallbackCopy(text) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0;';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        try {
+            document.execCommand('copy');
+            showToast('[OK] 链接已复制');
+        } catch (_) {
+            showToast('[ERR] 复制失败，请手动选中链接复制');
+        }
+        document.body.removeChild(ta);
+    }
+
     document.getElementById('btn-open-link').addEventListener('click', () => {
-        window.open(linkResultUrl.textContent, '_blank');
+        window.open(linkResultUrl.dataset.fullUrl || linkResultUrl.textContent, '_blank');
     });
 
     function handleGenerateLink() {
         const html = editor.value;
-        if (!window.LZString) { showToast('压缩库未加载，请检查网络后刷新'); return; }
+        if (!window.LZString) { showToast('[ERR] 压缩库未加载，请检查网络后刷新'); return; }
         const compressed = LZString.compressToEncodedURIComponent(html);
         const base = location.href.split('#')[0].split('?')[0];
         const url  = base + '#v=' + compressed;
 
         if (url.length > 50000) {
-            showToast('页面内容过大（>' + Math.round(url.length/1024) + 'KB），链接可能过长，建议精简 HTML 后再生成');
+            showToast('[WARN] 页面内容过大（>' + Math.round(url.length/1024) + 'KB），链接可能过长');
         }
 
         linkResultUrl.textContent = url;
+        linkResultUrl.dataset.fullUrl = url;
         linkBackdrop.classList.add('open');
     }
 
-    /* ── On page load: restore from hash ── */
+    /* ── Restore from hash ── */
     (function restoreFromHash() {
         const hash = location.hash;
         if (!hash.startsWith('#v=')) return;
@@ -874,7 +948,7 @@
                     updateStats();
                     updatePreview();
                     setDirty(false);
-                    showToast('已从链接加载页面内容');
+                    showToast('[OK] 已从链接加载页面内容');
                 }
             } else if (tries > 0) {
                 setTimeout(() => waitForLZ(tries - 1), 200);
@@ -884,12 +958,27 @@
     })();
 
     document.getElementById('modal-confirm').addEventListener('click', async () => {
+        if (selectedFmt === 'link') {
+            if (!window.LZString) { showToast('[ERR] 压缩库未加载，请刷新后重试'); return; }
+            const compressed = LZString.compressToEncodedURIComponent(editor.value);
+            const url = location.href.split('#')[0].split('?')[0] + '#v=' + compressed;
+            saveBackdrop.classList.remove('open');
+            selectedFmt = 'html';
+            updateConfirmBtn('html');
+            document.querySelectorAll('.fmt-option').forEach(o => o.classList.remove('selected'));
+            document.querySelector('.fmt-option[data-fmt="html"]').classList.add('selected');
+            fallbackCopy(url);
+            return;
+        }
+        const currentFmt = selectedFmt;
         saveBackdrop.classList.remove('open');
-        if (selectedFmt === 'html') {
+        selectedFmt = 'html';
+        updateConfirmBtn('html');
+        document.querySelectorAll('.fmt-option').forEach(o => o.classList.remove('selected'));
+        document.querySelector('.fmt-option[data-fmt="html"]').classList.add('selected');
+        if (currentFmt === 'html') {
             exportHTML();
-        } else if (selectedFmt === 'link') {
-            handleGenerateLink();
-        } else if (selectedFmt === 'pdf') {
+        } else if (currentFmt === 'pdf') {
             let fileHandle = null;
             if (window.showSaveFilePicker) {
                 try {
@@ -903,7 +992,7 @@
                 }
             }
             exportPDF(fileHandle);
-        } else if (selectedFmt === 'jpg') {
+        } else if (currentFmt === 'jpg') {
             let fileHandle = null;
             if (window.showSaveFilePicker) {
                 try {
@@ -963,9 +1052,7 @@
     updateStats();
     updatePreview();
 
-    /* ══════════════════════════════
-       SECTION 1: Normal Preview
-    ══════════════════════════════ */
+    /* ── Preview ── */
     function updatePreview() {
         if (isVisualMode) return;
         const html = editor.value;
@@ -983,17 +1070,7 @@
 
     editor.addEventListener('input', schedulePreview);
 
-    /* ══════════════════════════════
-       SECTION 2: Visual Edit Mode
-    ══════════════════════════════ */
-
-    /**
-     * Parse the user's HTML source, extract:
-     *   - styles from <style> tags
-     *   - body content
-     * Annotate every leaf text-bearing element with data-ve-idx
-     * so we can map mutations back to the source.
-     */
+    /* ── Visual Edit Mode ── */
     function enterVisualMode() {
         if (isVisualMode) return;
         isVisualMode = true;
@@ -1003,11 +1080,11 @@
         visualTip.style.display    = 'flex';
 
         previewPill.className        = 'panel-pill pill-visual';
-        previewPill.textContent      = '可视编辑';
+        previewPill.textContent      = 'VISUAL';
         previewPanelTitle.textContent = '可视编辑';
-        modeIndicator.textContent    = '可视编辑模式';
+        modeIndicator.textContent    = 'VISUAL';
 
-        btnVisualEdit.classList.add('btn-active-visual');
+        btnVisualEdit.classList.add('btn-active');
 
         renderVisualCanvas();
     }
@@ -1023,11 +1100,11 @@
         visualTip.style.display      = 'none';
 
         previewPill.className        = 'panel-pill pill-live';
-        previewPill.textContent      = '实时';
+        previewPill.textContent      = 'LIVE';
         previewPanelTitle.textContent = '预览';
-        modeIndicator.textContent    = '源码模式';
+        modeIndicator.textContent    = 'SOURCE';
 
-        btnVisualEdit.classList.remove('btn-active-visual');
+        btnVisualEdit.classList.remove('btn-active');
 
         updatePreview();
     }
@@ -1037,24 +1114,20 @@
 
         const src = editor.value;
 
-        /* Extract <style> blocks */
         const styleMatches = [...src.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)];
         const cssText = styleMatches.map(m => m[1]).join('\n');
 
-        /* Extract body inner HTML */
         const bodyMatch = src.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
         const bodyHTML  = bodyMatch ? bodyMatch[1] : src;
 
         suppressMutate = true;
 
-        /* Build canvas: inject user CSS scoped, then body content */
         visualCanvas.innerHTML = `<style>
 #visual-canvas { all: initial; display: block; }
 #visual-canvas * { box-sizing: border-box; }
 ${cssText}
 </style>${bodyHTML}`;
 
-        /* Tag every element that contains direct text */
         let idx = 0;
         const walker = document.createTreeWalker(
             visualCanvas,
@@ -1078,10 +1151,8 @@ ${cssText}
 
         setTimeout(() => { suppressMutate = false; }, 100);
 
-        /* Build index: idx → original text */
         const idxMap = buildIdxMap();
 
-        /* Watch mutations → sync back to source */
         mutationObs = new MutationObserver((mutations) => {
             if (suppressMutate) return;
             let changed = false;
@@ -1100,7 +1171,6 @@ ${cssText}
         });
     }
 
-    /* Build a map: ve-idx → { before: string, after: string, el: Element } */
     function buildIdxMap() {
         const map = {};
         visualCanvas.querySelectorAll('[data-ve-idx]').forEach(el => {
@@ -1117,10 +1187,6 @@ ${cssText}
         setDirty(true);
     }
 
-    /**
-     * For each changed editable element, find its original text in the source
-     * and replace it with the new text. Uses a simple "find unique text → replace" strategy.
-     */
     function doSourceSync(idxMap) {
         let src = editor.value;
 
@@ -1132,8 +1198,6 @@ ${cssText}
             const originalText = entry.originalText;
             if (newText === originalText) return;
 
-            /* Try to replace the text content within HTML tags.
-               We look for the exact original text between > and <  */
             const escaped = escapeRegex(originalText);
             const re = new RegExp(`(>\\s*)${escaped}(\\s*<)`, 'g');
             if (re.test(src)) {
@@ -1142,7 +1206,6 @@ ${cssText}
             }
         });
 
-        /* Suppress editor → preview re-render, just update source */
         suppressEditorUpdate = true;
         editor.value = src;
         suppressEditorUpdate = false;
@@ -1162,7 +1225,6 @@ ${cssText}
             .replace(/>/g, '&gt;');
     }
 
-    /* Toggle button */
     btnVisualEdit.addEventListener('click', () => {
         if (isVisualMode) exitVisualMode();
         else enterVisualMode();
@@ -1170,20 +1232,17 @@ ${cssText}
 
     document.getElementById('tip-exit').addEventListener('click', exitVisualMode);
 
-    /* Refresh in visual mode re-renders the canvas */
     document.getElementById('btn-refresh').addEventListener('click', () => {
         if (isVisualMode) {
             renderVisualCanvas();
-            showToast('可视编辑已刷新');
+            showToast('[OK] 可视编辑已刷新');
         } else {
             updatePreview();
-            showToast('预览已刷新');
+            showToast('[OK] 预览已刷新');
         }
     });
 
-    /* ══════════════════════════════
-       SECTION 3: Editor features
-    ══════════════════════════════ */
+    /* ── Editor features ── */
     function updateLineNumbers() {
         const lines = editor.value.split('\n').length;
         let html = '';
@@ -1196,14 +1255,14 @@ ${cssText}
 
     function updateStats() {
         const val = editor.value;
-        lineCount.textContent = val.split('\n').length + ' 行';
-        charCount.textContent = val.length + ' 字符';
+        lineCount.textContent = val.split('\n').length + ' LINES';
+        charCount.textContent = val.length + ' CHARS';
     }
     function updateCursor() {
         const val  = editor.value;
         const pos  = editor.selectionStart;
         const lines = val.substring(0, pos).split('\n');
-        cursorPos.textContent = `第 ${lines.length} 行，第 ${lines[lines.length-1].length+1} 列`;
+        cursorPos.textContent = `L${lines.length}:C${lines[lines.length-1].length+1}`;
     }
     editor.addEventListener('input', updateStats);
     editor.addEventListener('keyup', updateCursor);
@@ -1211,8 +1270,8 @@ ${cssText}
 
     function setDirty(val) {
         isDirty = val;
-        statusDot.style.background = val ? 'var(--warning)' : 'var(--success)';
-        statusText.textContent      = val ? '已修改' : '已保存';
+        statusDotChar.classList.toggle('dirty', val);
+        statusText.textContent = val ? 'MODIFIED' : 'SAVED';
     }
 
     function showToast(msg, duration = 1800) {
@@ -1222,7 +1281,6 @@ ${cssText}
         toastTimeout = setTimeout(() => toast.classList.remove('show'), duration);
     }
 
-    /* Tab / Enter / auto-pairs */
     editor.addEventListener('keydown', function (e) {
         if (e.key === 'Tab') {
             e.preventDefault();
@@ -1267,7 +1325,6 @@ ${cssText}
         }
     });
 
-    /* ─── Save: open modal ─── */
     function openSaveModal() {
         saveBackdrop.classList.add('open');
     }
@@ -1282,7 +1339,7 @@ ${cssText}
         a.click();
         URL.revokeObjectURL(a.href);
         setDirty(false);
-        showToast('✓ HTML 文件已保存');
+        showToast('[OK] HTML 文件已保存');
     }
 
     function loadScript(src) {
@@ -1363,7 +1420,7 @@ ${cssText}
         try {
             await loadScript(JSPDF_CDN);
         } catch (e) {
-            showToast('jsPDF 加载失败，请检查网络'); return;
+            showToast('[ERR] jsPDF 加载失败，请检查网络'); return;
         }
 
         try {
@@ -1382,13 +1439,13 @@ ${cssText}
                 const writable = await fileHandle.createWritable();
                 await writable.write(pdfBlob);
                 await writable.close();
-                showToast('✓ PDF 已保存');
+                showToast('[OK] PDF 已保存');
             } else {
                 pdf.save(baseName + '.pdf');
-                showToast('✓ PDF 已保存');
+                showToast('[OK] PDF 已保存');
             }
         } catch (e) {
-            showToast('PDF 生成失败：' + e.message);
+            showToast('[ERR] PDF 生成失败：' + e.message);
         }
     }
 
@@ -1407,7 +1464,7 @@ ${cssText}
                     const writable = await fileHandle.createWritable();
                     await writable.write(jpgBlob);
                     await writable.close();
-                    showToast('✓ JPG 已保存');
+                    showToast('[OK] JPG 已保存');
                 } catch (_) {
                     fallbackDownload(jpgBlob, baseName + '.jpg');
                 }
@@ -1415,7 +1472,7 @@ ${cssText}
                 fallbackDownload(jpgBlob, baseName + '.jpg');
             }
         } catch (e) {
-            showToast('截图失败：' + e.message);
+            showToast('[ERR] 截图失败：' + e.message);
         }
     }
 
@@ -1425,10 +1482,9 @@ ${cssText}
         a.download = filename;
         a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-        showToast('✓ 已保存');
+        showToast('[OK] 已保存');
     }
 
-    /* ─── Open ─── */
     document.getElementById('btn-open').addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', function () {
         const file = this.files[0]; if (!file) return;
@@ -1438,29 +1494,27 @@ ${cssText}
             if (isVisualMode) exitVisualMode();
             editor.value = ev.target.result;
             updateLineNumbers(); updateStats(); updateCursor(); updatePreview();
-            setDirty(false); showToast('✓ 文件已加载');
+            setDirty(false); showToast('[OK] 文件已加载');
         };
         reader.readAsText(file);
         this.value = '';
     });
 
-    /* ─── New ─── */
     document.getElementById('btn-new').addEventListener('click', () => {
         if (isDirty && editor.value.trim() && !confirm('当前内容未保存，确定要新建吗？')) return;
         if (isVisualMode) exitVisualMode();
         editor.value = defaultHTML;
         filenameInput.value = 'untitled.html';
         updateLineNumbers(); updateStats(); updatePreview();
-        setDirty(false); showToast('新建文件');
+        setDirty(false); showToast('[OK] 新建文件');
     });
 
     document.getElementById('btn-save').addEventListener('click', openSaveModal);
 
     document.getElementById('btn-copy').addEventListener('click', () => {
-        navigator.clipboard.writeText(editor.value).then(() => showToast('✓ 已复制到剪贴板'));
+        navigator.clipboard.writeText(editor.value).then(() => showToast('[OK] 已复制到剪贴板'));
     });
 
-    /* ─── Format ─── */
     document.getElementById('btn-format').addEventListener('click', formatCode);
     function formatCode() {
         try {
@@ -1490,11 +1544,10 @@ ${cssText}
             }
             editor.value = fmt.trimEnd();
             updateLineNumbers(); updateStats(); schedulePreview();
-            showToast('✓ 格式化完成');
-        } catch (_) { showToast('格式化失败，请检查 HTML'); }
+            showToast('[OK] 格式化完成');
+        } catch (_) { showToast('[ERR] 格式化失败，请检查 HTML'); }
     }
 
-    /* ─── Clear ─── */
     document.getElementById('btn-clear').addEventListener('click', () => {
         if (!editor.value.trim()) return;
         if (confirm('确定清空所有内容吗？')) {
@@ -1504,7 +1557,6 @@ ${cssText}
         }
     });
 
-    /* ─── New window ─── */
     document.getElementById('btn-fullscreen-preview').addEventListener('click', () => {
         const blob = new Blob([editor.value], { type: 'text/html' });
         const url  = URL.createObjectURL(blob);
@@ -1512,7 +1564,6 @@ ${cssText}
         setTimeout(() => URL.revokeObjectURL(url), 3000);
     });
 
-    /* ─── Undo/Redo buttons ─── */
     document.getElementById('btn-undo').addEventListener('click', () => {
         editor.focus(); document.execCommand('undo');
         setTimeout(() => { updateLineNumbers(); updateStats(); schedulePreview(); }, 10);
@@ -1522,7 +1573,6 @@ ${cssText}
         setTimeout(() => { updateLineNumbers(); updateStats(); schedulePreview(); }, 10);
     });
 
-    /* ─── Layout toggle ─── */
     const layMap = { 'lay-editor': 'editor-only', 'lay-split': '', 'lay-preview': 'preview-only' };
     Object.entries(layMap).forEach(([id, cls]) => {
         document.getElementById(id).addEventListener('click', () => {
@@ -1532,7 +1582,6 @@ ${cssText}
         });
     });
 
-    /* ─── Resizer ─── */
     const resizer     = document.getElementById('resizer');
     const editorPanel = document.getElementById('editor-panel');
     const previewPanel= document.getElementById('preview-panel');
@@ -1566,7 +1615,6 @@ ${cssText}
         visualWrap.style.pointerEvents   = '';
     });
 
-    /* ─── Global shortcuts ─── */
     document.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key === 'o') { e.preventDefault(); fileInput.click(); }
         if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'N') { e.preventDefault(); document.getElementById('btn-new').click(); }
@@ -1574,7 +1622,6 @@ ${cssText}
         if (e.key === 'Escape' && isVisualMode) exitVisualMode();
     });
 
-    /* Initial */
     setDirty(false);
 })();
 </script>
