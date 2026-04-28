@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML 编辑器</title>
+    <style>
+        :root {
+            --bg-primary: #0f1117;
+            --bg-secondary: #1a1d27;
+            --bg-panel: #13151f;
+            --bg-toolbar: #0d0f18;
+            --border: #252836;
+            --border-active: #3d4160;
+            --text-primary: #e8eaf0;
+            --text-secondary: #7b7f99;
+            --text-muted: #4a4f6a;
+            --accent: #6c8cff;
+            --accent-hover: #859cff;
+            --accent-dim: rgba(108, 140, 255, 0.12);
+            --success: #4caf82;
+            --success-dim: rgba(76, 175, 130, 0.12);
+            --warning: #f0b429;
+            --warning-dim: rgba(240,180,41,0.14);
+            --error: #f07070;
+            --error-dim: rgba(240, 112, 112, 0.12);
+            --line-num: #3a3f5a;
+            --selection: rgba(108, 140, 255, 0.18);
+            --scrollbar-thumb: #3a3f5a;
+            --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+            --font-ui: 'SF Pro Display', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            --radius: 8px;
+            --radius-sm: 5px;
+            --transition: 160ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html, body {
+            height: 100%;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-ui);
+            overflow: hidden;
+        }
+
+        #app { display: flex; flex-direction: column; height: 100vh; }
+
+        /* ─── Toolbar ─── */
+        #toolbar {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0 14px;
+            height: 46px;
+            background: var(--bg-toolbar);
+            border-bottom: 1px solid var(--border);
+            user-select: none;
+        }
+
+        .toolbar-brand { display: flex; align-items: center; gap: 8px; margin-right: 8px; }
+
+        .brand-icon {
+            width: 26px; height: 26px;
+            background: var(--accent);
+            border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .brand-icon svg { width: 14px; height: 14px; }
+        .brand-label { font-size: 13px; font-weight: 600; color: var(--text-primary); letter-spacing: 0.02em; }
+
+        .toolbar-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; flex-shrink: 0; }
+        .toolbar-group { display: flex; align-items: center; gap: 2px; }
+
+        .btn {
+            display: flex; align-items: center; gap: 5px;
+            padding: 0 10px; height: 30px;
+            border: none; border-radius: var(--radius-sm);
+            font-family: var(--font-ui); font-size: 12px; font-weight: 500;
+            cursor: pointer;
+            transition: background var(--transition), color var(--transition), box-shadow var(--transition);
+            white-space: nowrap;
+        }
+        .btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+        .btn-ghost { background: transparent; color: var(--text-secondary); }
+        .btn-ghost:hover { background: var(--bg-secondary); color: var(--text-primary); }
+
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-primary:hover { background: var(--accent-hover); }
+
+        .btn-success { background: var(--success-dim); color: var(--success); }
+        .btn-success:hover { background: rgba(76,175,130,0.22); }
+
+        .btn-warning { background: var(--warning-dim); color: var(--warning); }
+        .btn-warning:hover { background: rgba(240,180,41,0.24); }
+
+        .btn-active-visual {
+            background: var(--warning-dim) !important;
+            color: var(--warning) !important;
+            box-shadow: 0 0 0 1px rgba(240,180,41,0.35);
+        }
+
+        .btn-icon { width: 30px; padding: 0; justify-content: center; }
+
+        .toolbar-right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+
+        #layout-toggle {
+            display: flex; background: var(--bg-secondary);
+            border-radius: var(--radius-sm); padding: 2px;
+        }
+        .layout-btn {
+            width: 28px; height: 24px; border: none; border-radius: 4px;
+            background: transparent; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: background var(--transition);
+        }
+        .layout-btn svg { width: 14px; height: 14px; color: var(--text-muted); }
+        .layout-btn.active { background: var(--bg-panel); }
+        .layout-btn.active svg { color: var(--accent); }
+        .layout-btn:not(.active):hover svg { color: var(--text-secondary); }
+
+        #filename-input {
+            background: transparent; border: none; outline: none;
+            color: var(--text-secondary); font-family: var(--font-ui);
+            font-size: 12px; font-weight: 500; width: 160px;
+            cursor: pointer; padding: 2px 6px; border-radius: var(--radius-sm);
+            transition: background var(--transition), color var(--transition);
+        }
+        #filename-input:hover { background: var(--bg-secondary); color: var(--text-primary); }
+        #filename-input:focus { background: var(--bg-secondary); color: var(--text-primary); cursor: text; }
+
+        /* ─── Main ─── */
+        #main { flex: 1; display: flex; min-height: 0; overflow: hidden; }
+
+        #editor-panel, #preview-panel {
+            flex: 1; min-width: 0;
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+        #editor-panel { border-right: 1px solid var(--border); }
+
+        .panel-header {
+            display: flex; align-items: center; gap: 8px;
+            padding: 0 14px; height: 36px;
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .panel-title {
+            font-size: 11px; font-weight: 600;
+            letter-spacing: 0.08em; text-transform: uppercase;
+            color: var(--text-muted);
+        }
+        .panel-pill {
+            font-size: 10px; padding: 1px 7px;
+            border-radius: 99px; font-weight: 600;
+        }
+        .pill-html { background: rgba(240,100,70,0.14); color: #f07050; }
+        .pill-live { background: var(--success-dim); color: var(--success); }
+        .pill-visual { background: var(--warning-dim); color: var(--warning); }
+        .panel-actions { margin-left: auto; display: flex; gap: 2px; }
+
+        /* ─── Editor ─── */
+        #editor-wrap { flex: 1; display: flex; overflow: hidden; position: relative; }
+
+        #line-numbers {
+            flex-shrink: 0; width: 46px; padding: 16px 12px 16px 0;
+            background: var(--bg-panel); text-align: right;
+            font-family: var(--font-mono); font-size: 13px; line-height: 1.7;
+            color: var(--line-num); overflow: hidden; user-select: none;
+        }
+        #line-numbers::-webkit-scrollbar { display: none; }
+
+        #editor {
+            flex: 1; padding: 16px 16px 16px 12px;
+            border: none; outline: none; resize: none;
+            background: var(--bg-panel); color: var(--text-primary);
+            font-family: var(--font-mono); font-size: 13px; line-height: 1.7;
+            tab-size: 2; white-space: pre; overflow-wrap: normal;
+            overflow: auto; caret-color: var(--accent);
+            scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent;
+        }
+        #editor::selection { background: var(--selection); }
+        #editor::-webkit-scrollbar { width: 6px; height: 6px; }
+        #editor::-webkit-scrollbar-track { background: transparent; }
+        #editor::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+
+        #hint-container {
+            position: absolute; bottom: 8px; right: 14px;
+            pointer-events: none; z-index: 10;
+        }
+        .hint-pill {
+            background: var(--bg-secondary); border: 1px solid var(--border);
+            color: var(--text-muted); font-size: 10px; padding: 3px 8px; border-radius: 99px;
+        }
+        kbd {
+            display: inline-flex; align-items: center;
+            background: var(--border); color: var(--text-secondary);
+            border-radius: 3px; padding: 0 4px;
+            font-size: 10px; font-family: var(--font-mono); margin: 0 1px;
+        }
+
+        /* ─── Status bar ─── */
+        #statusbar {
+            flex-shrink: 0; display: flex; align-items: center; gap: 10px;
+            padding: 0 14px; height: 24px;
+            background: var(--bg-toolbar); border-top: 1px solid var(--border);
+            font-size: 11px; color: var(--text-muted);
+        }
+        .status-item { display: flex; align-items: center; gap: 4px; }
+        .status-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+        /* ─── Resizer ─── */
+        #resizer {
+            flex-shrink: 0; width: 4px; background: var(--border);
+            cursor: col-resize; transition: background var(--transition);
+        }
+        #resizer:hover, #resizer.dragging { background: var(--accent); }
+
+        /* ─── Preview iframe ─── */
+        #preview-frame { flex: 1; border: none; background: #fff; display: block; }
+
+        /* ─── Visual edit container ─── */
+        #visual-wrap {
+            flex: 1; overflow: auto; background: #f0f2f5;
+            display: none; position: relative;
+        }
+
+        #visual-canvas {
+            min-height: 100%;
+            background: #fff;
+            outline: none;
+            position: relative;
+        }
+
+        /* Edit mode: highlight hovered element */
+        #visual-canvas.edit-active [data-ve-idx]:hover {
+            outline: 2px solid rgba(108,140,255,0.7);
+            outline-offset: 1px;
+            cursor: text;
+        }
+        #visual-canvas.edit-active [data-ve-idx]:focus {
+            outline: 2px solid var(--accent);
+            outline-offset: 1px;
+        }
+
+        /* Visual editing active indicator bar */
+        #visual-tip {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(240,180,41,0.95);
+            color: #1a1200;
+            font-size: 11px; font-weight: 600;
+            padding: 5px 14px;
+            display: none;
+            align-items: center; gap: 8px;
+            backdrop-filter: blur(4px);
+        }
+        #visual-tip .tip-dot {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: rgba(0,0,0,0.35); flex-shrink: 0;
+        }
+        #visual-tip .tip-esc {
+            margin-left: auto;
+            background: rgba(0,0,0,0.12);
+            border-radius: 4px; padding: 1px 6px;
+            font-size: 10px; cursor: pointer;
+        }
+
+        /* ─── Layout modes ─── */
+        #main.editor-only #preview-panel,
+        #main.editor-only #resizer { display: none; }
+        #main.editor-only #editor-panel { flex: 1; }
+
+        #main.preview-only #editor-panel,
+        #main.preview-only #resizer { display: none; }
+        #main.preview-only #preview-panel { flex: 1; }
+
+        /* ─── Toast ─── */
+        #toast {
+            position: fixed; bottom: 40px; left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: var(--bg-secondary); border: 1px solid var(--border-active);
+            color: var(--text-primary); padding: 8px 16px;
+            border-radius: var(--radius); font-size: 12px; font-weight: 500;
+            pointer-events: none; opacity: 0;
+            transition: opacity 200ms, transform 200ms;
+            z-index: 9999; white-space: nowrap;
+        }
+        #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        /* ─── Save Modal ─── */
+        #save-modal-backdrop {
+            position: fixed; inset: 0; z-index: 10000;
+            background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(3px);
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none;
+            transition: opacity 180ms;
+        }
+        #save-modal-backdrop.open { opacity: 1; pointer-events: all; }
+
+        #save-modal {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-active);
+            border-radius: 12px;
+            padding: 24px 24px 20px;
+            width: 340px;
+            transform: translateY(12px) scale(0.97);
+            transition: transform 200ms cubic-bezier(0.34,1.56,0.64,1);
+            box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+        }
+        #save-modal-backdrop.open #save-modal {
+            transform: translateY(0) scale(1);
+        }
+
+        .modal-title {
+            font-size: 14px; font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+        }
+        .modal-sub {
+            font-size: 11px; color: var(--text-muted);
+            margin-bottom: 18px; line-height: 1.5;
+        }
+
+        .fmt-options {
+            display: flex; flex-direction: column; gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .fmt-option {
+            display: flex; align-items: center; gap: 12px;
+            padding: 11px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: border-color var(--transition), background var(--transition);
+            position: relative;
+        }
+        .fmt-option:hover { border-color: var(--border-active); background: rgba(255,255,255,0.02); }
+        .fmt-option.selected {
+            border-color: var(--accent);
+            background: var(--accent-dim);
+        }
+
+        .fmt-badge {
+            width: 36px; height: 36px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 11px; font-weight: 800; letter-spacing: 0.04em;
+            flex-shrink: 0;
+        }
+        .badge-html { background: rgba(240,112,80,0.16); color: #f07050; }
+        .badge-pdf  { background: rgba(108,140,255,0.16); color: var(--accent); }
+        .badge-jpg  { background: rgba(76,175,130,0.16);  color: var(--success); }
+
+        .fmt-info { flex: 1; }
+        .fmt-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+        .fmt-desc { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+
+        .fmt-radio {
+            width: 16px; height: 16px; border-radius: 50%;
+            border: 2px solid var(--border-active);
+            flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            transition: border-color var(--transition);
+        }
+        .fmt-option.selected .fmt-radio {
+            border-color: var(--accent);
+        }
+        .fmt-radio-dot {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: var(--accent);
+            transform: scale(0);
+            transition: transform 160ms cubic-bezier(0.34,1.56,0.64,1);
+        }
+        .fmt-option.selected .fmt-radio-dot { transform: scale(1); }
+
+        .modal-footer {
+            display: flex; justify-content: flex-end; gap: 8px;
+        }
+        .modal-btn {
+            height: 32px; padding: 0 16px;
+            border: none; border-radius: var(--radius-sm);
+            font-family: var(--font-ui); font-size: 12px; font-weight: 600;
+            cursor: pointer;
+            transition: background var(--transition), color var(--transition);
+        }
+        .modal-btn-cancel {
+            background: transparent; color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+        .modal-btn-cancel:hover { background: var(--bg-panel); color: var(--text-primary); }
+        .modal-btn-confirm {
+            background: var(--accent); color: #fff;
+        }
+        .modal-btn-confirm:hover { background: var(--accent-hover); }
+    </style>
+</head>
+<body>
+<div id="app">
+
+    <!-- Toolbar -->
+    <div id="toolbar">
+        <div class="toolbar-brand">
+            <div class="brand-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+                </svg>
+            </div>
+            <span class="brand-label">HTML Editor</span>
+        </div>
+
+        <div class="toolbar-sep"></div>
+        <input id="filename-input" type="text" value="untitled.html" spellcheck="false" title="点击重命名文件">
+        <div class="toolbar-sep"></div>
+
+        <div class="toolbar-group">
+            <button class="btn btn-ghost" id="btn-new" title="新建 (Ctrl+Shift+N)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/>
+                </svg>
+                新建
+            </button>
+            <button class="btn btn-ghost" id="btn-open" title="打开文件 (Ctrl+O)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                </svg>
+                打开
+            </button>
+            <button class="btn btn-success" id="btn-save" title="保存文件 (Ctrl+S)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                    <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+                </svg>
+                保存
+            </button>
+        </div>
+
+        <div class="toolbar-sep"></div>
+
+        <div class="toolbar-group">
+            <button class="btn btn-ghost btn-icon" id="btn-undo" title="撤销 (Ctrl+Z)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/>
+                </svg>
+            </button>
+            <button class="btn btn-ghost btn-icon" id="btn-redo" title="重做 (Ctrl+Y)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="toolbar-sep"></div>
+
+        <div class="toolbar-group">
+            <button class="btn btn-ghost" id="btn-format" title="格式化代码 (Alt+Shift+F)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="21" y1="10" x2="7" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/>
+                    <line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="7" y2="18"/>
+                </svg>
+                格式化
+            </button>
+            <button class="btn btn-ghost" id="btn-clear" title="清空内容">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                    <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                </svg>
+                清空
+            </button>
+        </div>
+
+        <div class="toolbar-sep"></div>
+
+        <!-- Visual Edit Toggle -->
+        <button class="btn btn-warning" id="btn-visual-edit" title="在预览上直接编辑文字 (Ctrl+E)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            可视编辑
+        </button>
+
+        <div class="toolbar-sep"></div>
+
+        <button class="btn btn-ghost" id="btn-fullscreen-preview" title="在新窗口预览">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+            </svg>
+            新窗口
+        </button>
+
+        <div class="toolbar-right">
+            <div id="layout-toggle">
+                <button class="layout-btn" id="lay-editor" title="仅编辑器">
+                    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="2" y="2" width="14" height="14" rx="1.5"/>
+                        <line x1="2" y1="6" x2="16" y2="6"/>
+                    </svg>
+                </button>
+                <button class="layout-btn active" id="lay-split" title="分栏视图">
+                    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="2" y="2" width="14" height="14" rx="1.5"/>
+                        <line x1="9" y1="2" x2="9" y2="16"/>
+                    </svg>
+                </button>
+                <button class="layout-btn" id="lay-preview" title="仅预览">
+                    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="2" y="2" width="14" height="14" rx="1.5"/>
+                        <path d="M5 9 Q9 5 13 9 Q9 13 5 9z"/>
+                        <circle cx="9" cy="9" r="1.5" fill="currentColor" stroke="none"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Area -->
+    <div id="main">
+
+        <!-- Editor Panel -->
+        <div id="editor-panel">
+            <div class="panel-header">
+                <span class="panel-title">源码</span>
+                <span class="panel-pill pill-html">HTML</span>
+                <div class="panel-actions">
+                    <button class="btn btn-ghost btn-icon" id="btn-copy" title="复制全部">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2"/>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div id="editor-wrap">
+                <div id="line-numbers"></div>
+                <textarea id="editor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+                <div id="hint-container">
+                    <span class="hint-pill"><kbd>Tab</kbd> 缩进 &nbsp;·&nbsp; <kbd>Ctrl</kbd><kbd>S</kbd> 保存 &nbsp;·&nbsp; <kbd>Ctrl</kbd><kbd>E</kbd> 可视编辑</span>
+                </div>
+            </div>
+            <div id="statusbar">
+                <div class="status-item">
+                    <div class="status-dot" id="status-dot" style="background:var(--success)"></div>
+                    <span id="status-text">就绪</span>
+                </div>
+                <span>|</span>
+                <span id="line-count">1 行</span>
+                <span>|</span>
+                <span id="char-count">0 字符</span>
+                <span>|</span>
+                <span id="cursor-pos">第 1 行，第 1 列</span>
+                <span>|</span>
+                <span id="mode-indicator">源码模式</span>
+            </div>
+        </div>
+
+        <!-- Resizer -->
+        <div id="resizer"></div>
+
+        <!-- Preview Panel -->
+        <div id="preview-panel">
+            <div class="panel-header" id="preview-header">
+                <span class="panel-title" id="preview-panel-title">预览</span>
+                <span class="panel-pill pill-live" id="preview-pill">实时</span>
+                <div class="panel-actions">
+                    <button class="btn btn-ghost btn-icon" id="btn-refresh" title="刷新预览">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="23 4 23 10 17 10"/>
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Normal preview iframe -->
+            <iframe id="preview-frame" sandbox="allow-scripts allow-modals allow-forms allow-same-origin"></iframe>
+
+            <!-- Visual edit container -->
+            <div id="visual-wrap">
+                <div id="visual-tip">
+                    <div class="tip-dot"></div>
+                    可视编辑模式 · 点击任意文字直接修改，改动实时同步到源码
+                    <span class="tip-esc" id="tip-exit">退出编辑</span>
+                </div>
+                <div id="visual-canvas"></div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<input type="file" id="file-input" accept=".html,.htm,.css,.js,.txt,.svg" style="display:none">
+<div id="toast"></div>
+
+<!-- Save Format Modal -->
+<div id="save-modal-backdrop">
+    <div id="save-modal">
+        <div class="modal-title">导出文件</div>
+        <div class="modal-sub">选择保存格式，然后点击确认下载</div>
+        <div class="fmt-options">
+            <div class="fmt-option selected" data-fmt="html">
+                <div class="fmt-badge badge-html">HTML</div>
+                <div class="fmt-info">
+                    <div class="fmt-name">HTML 源码</div>
+                    <div class="fmt-desc">保存完整 HTML 文件，可再次编辑</div>
+                </div>
+                <div class="fmt-radio"><div class="fmt-radio-dot"></div></div>
+            </div>
+            <div class="fmt-option" data-fmt="pdf">
+                <div class="fmt-badge badge-pdf">PDF</div>
+                <div class="fmt-info">
+                    <div class="fmt-name">PDF 文档</div>
+                    <div class="fmt-desc">通过浏览器打印功能另存为 PDF</div>
+                </div>
+                <div class="fmt-radio"><div class="fmt-radio-dot"></div></div>
+            </div>
+            <div class="fmt-option" data-fmt="jpg">
+                <div class="fmt-badge badge-jpg">JPG</div>
+                <div class="fmt-info">
+                    <div class="fmt-name">JPG 图片</div>
+                    <div class="fmt-desc">将页面截图保存为图片文件</div>
+                </div>
+                <div class="fmt-radio"><div class="fmt-radio-dot"></div></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-btn modal-btn-cancel" id="modal-cancel">取消</button>
+            <button class="modal-btn modal-btn-confirm" id="modal-confirm">确认导出</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    /* ─── DOM refs ─── */
+    const editor        = document.getElementById('editor');
+    const previewFrame  = document.getElementById('preview-frame');
+    const lineNumbers   = document.getElementById('line-numbers');
+    const charCount     = document.getElementById('char-count');
+    const lineCount     = document.getElementById('line-count');
+    const cursorPos     = document.getElementById('cursor-pos');
+    const statusDot     = document.getElementById('status-dot');
+    const statusText    = document.getElementById('status-text');
+    const modeIndicator = document.getElementById('mode-indicator');
+    const toast         = document.getElementById('toast');
+    const fileInput     = document.getElementById('file-input');
+    const filenameInput = document.getElementById('filename-input');
+    const mainEl        = document.getElementById('main');
+    const visualWrap    = document.getElementById('visual-wrap');
+    const visualCanvas  = document.getElementById('visual-canvas');
+    const visualTip     = document.getElementById('visual-tip');
+    const previewPill   = document.getElementById('preview-pill');
+    const previewPanelTitle = document.getElementById('preview-panel-title');
+    const btnVisualEdit = document.getElementById('btn-visual-edit');
+
+    let previewTimeout  = null;
+    let toastTimeout    = null;
+    let isDirty         = false;
+    let isVisualMode    = false;
+    let mutationObs     = null;
+    let suppressMutate  = false;
+
+    const saveBackdrop  = document.getElementById('save-modal-backdrop');
+    let selectedFmt     = 'html';
+
+    document.querySelectorAll('.fmt-option').forEach(opt => {
+        opt.addEventListener('click', () => {
+            document.querySelectorAll('.fmt-option').forEach(o => o.classList.remove('selected'));
+            opt.classList.add('selected');
+            selectedFmt = opt.dataset.fmt;
+        });
+    });
+
+    document.getElementById('modal-cancel').addEventListener('click', () => {
+        saveBackdrop.classList.remove('open');
+    });
+
+    saveBackdrop.addEventListener('click', (e) => {
+        if (e.target === saveBackdrop) saveBackdrop.classList.remove('open');
+    });
+
+    document.getElementById('modal-confirm').addEventListener('click', async () => {
+        saveBackdrop.classList.remove('open');
+        if (selectedFmt === 'html') {
+            exportHTML();
+        } else if (selectedFmt === 'pdf') {
+            let fileHandle = null;
+            if (window.showSaveFilePicker) {
+                try {
+                    const baseName = (filenameInput.value.trim() || 'untitled').replace(/\.(html?|pdf|jpe?g)$/i, '');
+                    fileHandle = await window.showSaveFilePicker({
+                        suggestedName: baseName + '.pdf',
+                        types: [{ description: 'PDF 文档', accept: { 'application/pdf': ['.pdf'] } }]
+                    });
+                } catch (err) {
+                    if (err.name === 'AbortError') return;
+                }
+            }
+            exportPDF(fileHandle);
+        } else if (selectedFmt === 'jpg') {
+            let fileHandle = null;
+            if (window.showSaveFilePicker) {
+                try {
+                    const baseName = (filenameInput.value.trim() || 'untitled').replace(/\.(html?|pdf|jpe?g)$/i, '');
+                    fileHandle = await window.showSaveFilePicker({
+                        suggestedName: baseName + '.jpg',
+                        types: [{ description: 'JPEG 图片', accept: { 'image/jpeg': ['.jpg', '.jpeg'] } }]
+                    });
+                } catch (err) {
+                    if (err.name === 'AbortError') return;
+                }
+            }
+            exportJPG(fileHandle);
+        }
+    });
+
+    /* ─── Default content ─── */
+    const defaultHTML = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的页面</title>
+  <style>
+    body {
+      font-family: 'SF Pro Display', 'PingFang SC', sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      color: #e8eaf0;
+    }
+    .card {
+      text-align: center;
+      padding: 48px 56px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      backdrop-filter: blur(12px);
+    }
+    h1 { font-size: 2.4rem; font-weight: 700; margin-bottom: 12px; }
+    p { font-size: 1.1rem; color: rgba(255,255,255,0.6); margin: 0; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Hello, World!</h1>
+    <p>在左侧编辑 HTML，右侧实时预览</p>
+  </div>
+</body>
+</html>`;
+
+    editor.value = defaultHTML;
+    updateLineNumbers();
+    updateStats();
+    updatePreview();
+
+    /* ══════════════════════════════
+       SECTION 1: Normal Preview
+    ══════════════════════════════ */
+    function updatePreview() {
+        if (isVisualMode) return;
+        const html = editor.value;
+        const blob = new Blob([html], { type: 'text/html' });
+        const url  = URL.createObjectURL(blob);
+        previewFrame.src = url;
+        setTimeout(() => URL.revokeObjectURL(url), 3000);
+    }
+
+    function schedulePreview() {
+        clearTimeout(previewTimeout);
+        previewTimeout = setTimeout(updatePreview, 600);
+        setDirty(true);
+    }
+
+    editor.addEventListener('input', schedulePreview);
+
+    /* ══════════════════════════════
+       SECTION 2: Visual Edit Mode
+    ══════════════════════════════ */
+
+    /**
+     * Parse the user's HTML source, extract:
+     *   - styles from <style> tags
+     *   - body content
+     * Annotate every leaf text-bearing element with data-ve-idx
+     * so we can map mutations back to the source.
+     */
+    function enterVisualMode() {
+        if (isVisualMode) return;
+        isVisualMode = true;
+
+        previewFrame.style.display = 'none';
+        visualWrap.style.display   = 'block';
+        visualTip.style.display    = 'flex';
+
+        previewPill.className        = 'panel-pill pill-visual';
+        previewPill.textContent      = '可视编辑';
+        previewPanelTitle.textContent = '可视编辑';
+        modeIndicator.textContent    = '可视编辑模式';
+
+        btnVisualEdit.classList.add('btn-active-visual');
+
+        renderVisualCanvas();
+    }
+
+    function exitVisualMode() {
+        if (!isVisualMode) return;
+        isVisualMode = false;
+
+        if (mutationObs) { mutationObs.disconnect(); mutationObs = null; }
+
+        previewFrame.style.display   = 'block';
+        visualWrap.style.display     = 'none';
+        visualTip.style.display      = 'none';
+
+        previewPill.className        = 'panel-pill pill-live';
+        previewPill.textContent      = '实时';
+        previewPanelTitle.textContent = '预览';
+        modeIndicator.textContent    = '源码模式';
+
+        btnVisualEdit.classList.remove('btn-active-visual');
+
+        updatePreview();
+    }
+
+    function renderVisualCanvas() {
+        if (mutationObs) { mutationObs.disconnect(); mutationObs = null; }
+
+        const src = editor.value;
+
+        /* Extract <style> blocks */
+        const styleMatches = [...src.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)];
+        const cssText = styleMatches.map(m => m[1]).join('\n');
+
+        /* Extract body inner HTML */
+        const bodyMatch = src.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+        const bodyHTML  = bodyMatch ? bodyMatch[1] : src;
+
+        suppressMutate = true;
+
+        /* Build canvas: inject user CSS scoped, then body content */
+        visualCanvas.innerHTML = `<style>
+#visual-canvas { all: initial; display: block; }
+#visual-canvas * { box-sizing: border-box; }
+${cssText}
+</style>${bodyHTML}`;
+
+        /* Tag every element that contains direct text */
+        let idx = 0;
+        const walker = document.createTreeWalker(
+            visualCanvas,
+            NodeFilter.SHOW_ELEMENT,
+            null
+        );
+        let node;
+        while ((node = walker.nextNode())) {
+            if (node.tagName === 'STYLE' || node.tagName === 'SCRIPT') continue;
+            const hasDirectText = [...node.childNodes].some(
+                n => n.nodeType === Node.TEXT_NODE && n.textContent.trim()
+            );
+            if (hasDirectText) {
+                node.setAttribute('data-ve-idx', idx++);
+                node.setAttribute('contenteditable', 'true');
+                node.setAttribute('spellcheck', 'false');
+            }
+        }
+
+        visualCanvas.classList.add('edit-active');
+
+        setTimeout(() => { suppressMutate = false; }, 100);
+
+        /* Build index: idx → original text */
+        const idxMap = buildIdxMap();
+
+        /* Watch mutations → sync back to source */
+        mutationObs = new MutationObserver((mutations) => {
+            if (suppressMutate) return;
+            let changed = false;
+            for (const m of mutations) {
+                if (m.type === 'characterData' || m.type === 'childList') {
+                    changed = true; break;
+                }
+            }
+            if (changed) scheduleSourceSync(idxMap);
+        });
+
+        mutationObs.observe(visualCanvas, {
+            subtree: true,
+            characterData: true,
+            childList: true
+        });
+    }
+
+    /* Build a map: ve-idx → { before: string, after: string, el: Element } */
+    function buildIdxMap() {
+        const map = {};
+        visualCanvas.querySelectorAll('[data-ve-idx]').forEach(el => {
+            const idx = el.getAttribute('data-ve-idx');
+            map[idx] = { el, originalText: el.innerText };
+        });
+        return map;
+    }
+
+    let syncTimeout = null;
+    function scheduleSourceSync(idxMap) {
+        clearTimeout(syncTimeout);
+        syncTimeout = setTimeout(() => doSourceSync(idxMap), 400);
+        setDirty(true);
+    }
+
+    /**
+     * For each changed editable element, find its original text in the source
+     * and replace it with the new text. Uses a simple "find unique text → replace" strategy.
+     */
+    function doSourceSync(idxMap) {
+        let src = editor.value;
+
+        visualCanvas.querySelectorAll('[data-ve-idx]').forEach(el => {
+            const idx         = el.getAttribute('data-ve-idx');
+            const entry       = idxMap[idx];
+            if (!entry) return;
+            const newText     = el.innerText;
+            const originalText = entry.originalText;
+            if (newText === originalText) return;
+
+            /* Try to replace the text content within HTML tags.
+               We look for the exact original text between > and <  */
+            const escaped = escapeRegex(originalText);
+            const re = new RegExp(`(>\\s*)${escaped}(\\s*<)`, 'g');
+            if (re.test(src)) {
+                src = src.replace(re, `$1${htmlEscape(newText)}$2`);
+                entry.originalText = newText;
+            }
+        });
+
+        /* Suppress editor → preview re-render, just update source */
+        suppressEditorUpdate = true;
+        editor.value = src;
+        suppressEditorUpdate = false;
+        updateLineNumbers();
+        updateStats();
+    }
+
+    let suppressEditorUpdate = false;
+
+    function escapeRegex(str) {
+        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+    function htmlEscape(str) {
+        return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
+    /* Toggle button */
+    btnVisualEdit.addEventListener('click', () => {
+        if (isVisualMode) exitVisualMode();
+        else enterVisualMode();
+    });
+
+    document.getElementById('tip-exit').addEventListener('click', exitVisualMode);
+
+    /* Refresh in visual mode re-renders the canvas */
+    document.getElementById('btn-refresh').addEventListener('click', () => {
+        if (isVisualMode) {
+            renderVisualCanvas();
+            showToast('可视编辑已刷新');
+        } else {
+            updatePreview();
+            showToast('预览已刷新');
+        }
+    });
+
+    /* ══════════════════════════════
+       SECTION 3: Editor features
+    ══════════════════════════════ */
+    function updateLineNumbers() {
+        const lines = editor.value.split('\n').length;
+        let html = '';
+        for (let i = 1; i <= lines; i++) html += i + '\n';
+        lineNumbers.textContent = html;
+        lineNumbers.scrollTop = editor.scrollTop;
+    }
+    editor.addEventListener('scroll', () => { lineNumbers.scrollTop = editor.scrollTop; });
+    editor.addEventListener('input', updateLineNumbers);
+
+    function updateStats() {
+        const val = editor.value;
+        lineCount.textContent = val.split('\n').length + ' 行';
+        charCount.textContent = val.length + ' 字符';
+    }
+    function updateCursor() {
+        const val  = editor.value;
+        const pos  = editor.selectionStart;
+        const lines = val.substring(0, pos).split('\n');
+        cursorPos.textContent = `第 ${lines.length} 行，第 ${lines[lines.length-1].length+1} 列`;
+    }
+    editor.addEventListener('input', updateStats);
+    editor.addEventListener('keyup', updateCursor);
+    editor.addEventListener('click', updateCursor);
+
+    function setDirty(val) {
+        isDirty = val;
+        statusDot.style.background = val ? 'var(--warning)' : 'var(--success)';
+        statusText.textContent      = val ? '已修改' : '已保存';
+    }
+
+    function showToast(msg, duration = 1800) {
+        toast.textContent = msg;
+        toast.classList.add('show');
+        clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(() => toast.classList.remove('show'), duration);
+    }
+
+    /* Tab / Enter / auto-pairs */
+    editor.addEventListener('keydown', function (e) {
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            const start = this.selectionStart, end = this.selectionEnd, val = this.value;
+            if (e.shiftKey) {
+                const ls = val.lastIndexOf('\n', start - 1) + 1;
+                if (val.substring(ls, ls + 2) === '  ') {
+                    this.value = val.substring(0, ls) + val.substring(ls + 2);
+                    this.selectionStart = this.selectionEnd = start - 2;
+                }
+            } else {
+                this.value = val.substring(0, start) + '  ' + val.substring(end);
+                this.selectionStart = this.selectionEnd = start + 2;
+            }
+            updateLineNumbers(); updateStats(); schedulePreview();
+        }
+
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const start = this.selectionStart, val = this.value;
+            const ls     = val.lastIndexOf('\n', start - 1) + 1;
+            const indent = val.substring(ls, start).match(/^(\s*)/)[1];
+            const ins    = '\n' + indent;
+            this.value   = val.substring(0, start) + ins + val.substring(this.selectionEnd);
+            this.selectionStart = this.selectionEnd = start + ins.length;
+            updateLineNumbers(); updateStats(); schedulePreview();
+        }
+
+        const pairs = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'" };
+        if (pairs[e.key] && this.selectionStart === this.selectionEnd) {
+            e.preventDefault();
+            const s = this.selectionStart, val = this.value;
+            this.value = val.substring(0, s) + e.key + pairs[e.key] + val.substring(s);
+            this.selectionStart = this.selectionEnd = s + 1;
+            updateLineNumbers(); updateStats();
+        }
+
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); openSaveModal(); }
+        if ((e.ctrlKey || e.metaKey) && e.key === 'e') { e.preventDefault(); btnVisualEdit.click(); }
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'y')) {
+            setTimeout(() => { updateLineNumbers(); updateStats(); schedulePreview(); }, 10);
+        }
+    });
+
+    /* ─── Save: open modal ─── */
+    function openSaveModal() {
+        saveBackdrop.classList.add('open');
+    }
+
+    function exportHTML() {
+        const name = (filenameInput.value.trim() || 'untitled');
+        const base = name.replace(/\.(html?|pdf|jpe?g)$/i, '');
+        const blob = new Blob([editor.value], { type: 'text/html' });
+        const a    = document.createElement('a');
+        a.href     = URL.createObjectURL(blob);
+        a.download = base + '.html';
+        a.click();
+        URL.revokeObjectURL(a.href);
+        setDirty(false);
+        showToast('✓ HTML 文件已保存');
+    }
+
+    function loadScript(src) {
+        return new Promise((resolve, reject) => {
+            if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+            const s = document.createElement('script');
+            s.src = src; s.onload = resolve; s.onerror = reject;
+            document.head.appendChild(s);
+        });
+    }
+
+    const JSPDF_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+
+    function capturePageAsDataURL(htmlSrc) {
+        return new Promise((resolve, reject) => {
+            const msgId = 'h2c_' + Date.now();
+
+            const onMsg = (evt) => {
+                if (!evt.data || evt.data.id !== msgId) return;
+                window.removeEventListener('message', onMsg);
+                if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+                if (evt.data.error) { reject(new Error(evt.data.error)); return; }
+                resolve({ dataURL: evt.data.dataURL, W: evt.data.W, H: evt.data.H });
+            };
+            window.addEventListener('message', onMsg);
+
+            const timer = setTimeout(() => {
+                window.removeEventListener('message', onMsg);
+                if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+                reject(new Error('截图超时，请重试'));
+            }, 30000);
+
+            const iframe = document.createElement('iframe');
+            iframe.style.cssText = 'position:fixed;left:-9999px;top:0;border:none;width:1280px;height:900px;visibility:hidden;';
+
+            const captureScript = `
+<script>
+(function() {
+  var s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+  s.onload = function() {
+    var W = Math.max(1280, document.documentElement.scrollWidth);
+    var H = Math.max(900,  document.documentElement.scrollHeight);
+    document.documentElement.style.width  = W + 'px';
+    document.documentElement.style.height = H + 'px';
+    html2canvas(document.body, {
+      scale: 2, useCORS: true, allowTaint: true,
+      backgroundColor: null,
+      width: W, height: H, windowWidth: W, windowHeight: H
+    }).then(function(canvas) {
+      parent.postMessage({ id: '${msgId}', dataURL: canvas.toDataURL('image/jpeg', 0.95), W: W, H: H }, '*');
+    }).catch(function(e) {
+      parent.postMessage({ id: '${msgId}', error: e.message }, '*');
+    });
+  };
+  s.onerror = function() { parent.postMessage({ id: '${msgId}', error: 'html2canvas CDN 加载失败' }, '*'); };
+  document.head.appendChild(s);
+})();
+<\/script>`;
+
+            const injected = htmlSrc.replace(/<\/body>/i, captureScript + '</body>');
+            const blob = new Blob([injected], { type: 'text/html' });
+            const blobUrl = URL.createObjectURL(blob);
+            iframe.src = blobUrl;
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+            document.body.appendChild(iframe);
+
+            iframe.addEventListener('load', () => {
+                clearTimeout(timer);
+            });
+        });
+    }
+
+    async function exportPDF(fileHandle) {
+        const baseName = (filenameInput.value.trim() || 'untitled').replace(/\.(html?|pdf|jpe?g)$/i, '');
+        showToast('正在生成 PDF，请稍候…', 15000);
+
+        try {
+            await loadScript(JSPDF_CDN);
+        } catch (e) {
+            showToast('jsPDF 加载失败，请检查网络'); return;
+        }
+
+        try {
+            const { dataURL, W, H } = await capturePageAsDataURL(editor.value);
+
+            const { jsPDF } = window.jspdf;
+            const pxToMm = px => Math.round(px * 2540 / 9600) / 10;
+            const pdfW = pxToMm(W);
+            const pdfH = pxToMm(H);
+
+            const pdf = new jsPDF({ orientation: pdfW > pdfH ? 'l' : 'p', unit: 'mm', format: [pdfW, pdfH], compress: true });
+            pdf.addImage(dataURL, 'JPEG', 0, 0, pdfW, pdfH, '', 'FAST');
+            const pdfBlob = pdf.output('blob');
+
+            if (fileHandle) {
+                const writable = await fileHandle.createWritable();
+                await writable.write(pdfBlob);
+                await writable.close();
+                showToast('✓ PDF 已保存');
+            } else {
+                pdf.save(baseName + '.pdf');
+                showToast('✓ PDF 已保存');
+            }
+        } catch (e) {
+            showToast('PDF 生成失败：' + e.message);
+        }
+    }
+
+    async function exportJPG(fileHandle) {
+        const baseName = (filenameInput.value.trim() || 'untitled').replace(/\.(html?|pdf|jpe?g)$/i, '');
+        showToast('正在生成截图，请稍候…', 15000);
+
+        try {
+            const { dataURL } = await capturePageAsDataURL(editor.value);
+
+            const resp = await fetch(dataURL);
+            const jpgBlob = await resp.blob();
+
+            if (fileHandle) {
+                try {
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(jpgBlob);
+                    await writable.close();
+                    showToast('✓ JPG 已保存');
+                } catch (_) {
+                    fallbackDownload(jpgBlob, baseName + '.jpg');
+                }
+            } else {
+                fallbackDownload(jpgBlob, baseName + '.jpg');
+            }
+        } catch (e) {
+            showToast('截图失败：' + e.message);
+        }
+    }
+
+    function fallbackDownload(blob, filename) {
+        const a = document.createElement('a');
+        a.href     = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+        showToast('✓ 已保存');
+    }
+
+    /* ─── Open ─── */
+    document.getElementById('btn-open').addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', function () {
+        const file = this.files[0]; if (!file) return;
+        filenameInput.value = file.name;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            if (isVisualMode) exitVisualMode();
+            editor.value = ev.target.result;
+            updateLineNumbers(); updateStats(); updateCursor(); updatePreview();
+            setDirty(false); showToast('✓ 文件已加载');
+        };
+        reader.readAsText(file);
+        this.value = '';
+    });
+
+    /* ─── New ─── */
+    document.getElementById('btn-new').addEventListener('click', () => {
+        if (isDirty && editor.value.trim() && !confirm('当前内容未保存，确定要新建吗？')) return;
+        if (isVisualMode) exitVisualMode();
+        editor.value = defaultHTML;
+        filenameInput.value = 'untitled.html';
+        updateLineNumbers(); updateStats(); updatePreview();
+        setDirty(false); showToast('新建文件');
+    });
+
+    document.getElementById('btn-save').addEventListener('click', openSaveModal);
+
+    document.getElementById('btn-copy').addEventListener('click', () => {
+        navigator.clipboard.writeText(editor.value).then(() => showToast('✓ 已复制到剪贴板'));
+    });
+
+    /* ─── Format ─── */
+    document.getElementById('btn-format').addEventListener('click', formatCode);
+    function formatCode() {
+        try {
+            const raw = editor.value;
+            let fmt = '', indent = 0;
+            const INDENT   = '  ';
+            const voidTags = new Set(['area','base','br','col','embed','hr','img','input','link','meta','param','source','track','wbr']);
+            const inline   = new Set(['a','abbr','b','bdo','big','br','button','cite','code','dfn','em','i','img','input','kbd','label','map','output','q','samp','select','small','span','strong','sub','sup','textarea','time','tt','var']);
+            const tokenRe  = /<!--[\s\S]*?-->|<\/[^>]+>|<[^>]+\/?>|[^<]+/g;
+            let m;
+            while ((m = tokenRe.exec(raw)) !== null) {
+                const t = m[0].trim(); if (!t) continue;
+                if (t.startsWith('<!--')) {
+                    fmt += INDENT.repeat(indent) + t + '\n';
+                } else if (t.startsWith('</')) {
+                    const tag = t.match(/<\/(\w+)/)?.[1]?.toLowerCase();
+                    if (tag && !inline.has(tag)) indent = Math.max(0, indent - 1);
+                    fmt += INDENT.repeat(indent) + t + '\n';
+                } else if (t.startsWith('<')) {
+                    const tag = t.match(/<(\w+)/)?.[1]?.toLowerCase();
+                    const sc  = t.endsWith('/>') || (tag && voidTags.has(tag));
+                    fmt += INDENT.repeat(indent) + t + '\n';
+                    if (!sc && !inline.has(tag) && tag) indent++;
+                } else {
+                    if (t) fmt += INDENT.repeat(indent) + t + '\n';
+                }
+            }
+            editor.value = fmt.trimEnd();
+            updateLineNumbers(); updateStats(); schedulePreview();
+            showToast('✓ 格式化完成');
+        } catch (_) { showToast('格式化失败，请检查 HTML'); }
+    }
+
+    /* ─── Clear ─── */
+    document.getElementById('btn-clear').addEventListener('click', () => {
+        if (!editor.value.trim()) return;
+        if (confirm('确定清空所有内容吗？')) {
+            if (isVisualMode) exitVisualMode();
+            editor.value = '';
+            updateLineNumbers(); updateStats(); updatePreview(); setDirty(true);
+        }
+    });
+
+    /* ─── New window ─── */
+    document.getElementById('btn-fullscreen-preview').addEventListener('click', () => {
+        const blob = new Blob([editor.value], { type: 'text/html' });
+        const url  = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 3000);
+    });
+
+    /* ─── Undo/Redo buttons ─── */
+    document.getElementById('btn-undo').addEventListener('click', () => {
+        editor.focus(); document.execCommand('undo');
+        setTimeout(() => { updateLineNumbers(); updateStats(); schedulePreview(); }, 10);
+    });
+    document.getElementById('btn-redo').addEventListener('click', () => {
+        editor.focus(); document.execCommand('redo');
+        setTimeout(() => { updateLineNumbers(); updateStats(); schedulePreview(); }, 10);
+    });
+
+    /* ─── Layout toggle ─── */
+    const layMap = { 'lay-editor': 'editor-only', 'lay-split': '', 'lay-preview': 'preview-only' };
+    Object.entries(layMap).forEach(([id, cls]) => {
+        document.getElementById(id).addEventListener('click', () => {
+            mainEl.className = cls;
+            document.querySelectorAll('.layout-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        });
+    });
+
+    /* ─── Resizer ─── */
+    const resizer     = document.getElementById('resizer');
+    const editorPanel = document.getElementById('editor-panel');
+    const previewPanel= document.getElementById('preview-panel');
+    let isResizing = false, startX = 0, startEditorW = 0;
+
+    resizer.addEventListener('mousedown', (e) => {
+        isResizing = true; startX = e.clientX; startEditorW = editorPanel.offsetWidth;
+        resizer.classList.add('dragging');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        previewFrame.style.pointerEvents = 'none';
+        visualWrap.style.pointerEvents   = 'none';
+    });
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+        const dx   = e.clientX - startX;
+        const totW = mainEl.offsetWidth - resizer.offsetWidth;
+        const newW = Math.max(200, Math.min(totW - 200, startEditorW + dx));
+        editorPanel.style.flex = 'none';
+        editorPanel.style.width = newW + 'px';
+        previewPanel.style.flex  = '1';
+        previewPanel.style.width = '';
+    });
+    document.addEventListener('mouseup', () => {
+        if (!isResizing) return;
+        isResizing = false;
+        resizer.classList.remove('dragging');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        previewFrame.style.pointerEvents = '';
+        visualWrap.style.pointerEvents   = '';
+    });
+
+    /* ─── Global shortcuts ─── */
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'o') { e.preventDefault(); fileInput.click(); }
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'N') { e.preventDefault(); document.getElementById('btn-new').click(); }
+        if (e.altKey && e.shiftKey && e.key === 'F') { e.preventDefault(); formatCode(); }
+        if (e.key === 'Escape' && isVisualMode) exitVisualMode();
+    });
+
+    /* Initial */
+    setDirty(false);
+})();
+</script>
+</body>
+</html>
