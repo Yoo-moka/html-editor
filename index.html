@@ -854,7 +854,7 @@
             const msgId = 'cap_' + Date.now();
 
             const iframe = document.createElement('iframe');
-            iframe.style.cssText = 'position:fixed;left:-9999px;top:0;border:none;width:1280px;height:900px;opacity:0;pointer-events:none;';
+            iframe.style.cssText = 'position:fixed;left:-9999px;top:0;border:none;width:1280px;height:2000px;opacity:0;pointer-events:none;';
             document.body.appendChild(iframe);
 
             let timer = null;
@@ -880,20 +880,28 @@
             }, 60000);
 
             const captureScript = `<script>(function(){
-var s=document.createElement('script');
-s.src='${DOM2IMG_CDN}';
-s.onload=function(){
+function doCapture(){
   try{
-    var W=Math.max(1280,document.documentElement.scrollWidth);
-    var H=Math.max(900,document.documentElement.scrollHeight);
-    document.documentElement.style.width=W+'px';
-    document.documentElement.style.height=H+'px';
-    domtoimage.toJpeg(document.documentElement,{quality:0.95,width:W,height:H,bgcolor:'#ffffff'})
+    var body=document.body||document.documentElement;
+    var W=Math.max(1280,body.scrollWidth,document.documentElement.scrollWidth);
+    var H=Math.max(100,body.scrollHeight,document.documentElement.scrollHeight);
+    body.style.minWidth=W+'px';
+    body.style.minHeight=H+'px';
+    body.style.overflow='visible';
+    var node=body;
+    domtoimage.toJpeg(node,{quality:0.95,width:W,height:H,style:{margin:'0',padding:'0',background:'#ffffff'}})
     .then(function(dataURL){
       parent.postMessage({id:'${msgId}',dataURL:dataURL,W:W,H:H},'*');
-    }).catch(function(e){parent.postMessage({id:'${msgId}',error:e.message},'*');});
+    }).catch(function(e){
+      domtoimage.toPng(node,{width:W,height:H,style:{margin:'0',padding:'0',background:'#ffffff'}})
+      .then(function(dataURL){parent.postMessage({id:'${msgId}',dataURL:dataURL,W:W,H:H},'*');})
+      .catch(function(e2){parent.postMessage({id:'${msgId}',error:e.message+'\\n'+e2.message},'*');});
+    });
   }catch(e){parent.postMessage({id:'${msgId}',error:e.message},'*');}
-};
+}
+var s=document.createElement('script');
+s.src='${DOM2IMG_CDN}';
+s.onload=function(){ setTimeout(doCapture, 800); };
 s.onerror=function(){parent.postMessage({id:'${msgId}',error:'dom-to-image 加载失败，请检查网络'},'*');};
 document.head.appendChild(s);
 })();<\/script>`;
