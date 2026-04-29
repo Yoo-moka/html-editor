@@ -319,6 +319,27 @@
         .modal-btn-cancel:hover { background: var(--muted); color: var(--fg); border-color: var(--fg); }
         .modal-btn-confirm { color: var(--accent); border-color: var(--accent); background: var(--accent-b); text-shadow: var(--glow-sm); }
         .modal-btn-confirm:hover { background: var(--accent); color: var(--bg); box-shadow: var(--glow); }
+        #link-modal-backdrop { display: none; }
+        #link-modal-backdrop.open { display: flex; }
+        .link-input-row { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+        .link-input-row input {
+            flex: 1; height: 30px; padding: 0 10px;
+            background: var(--muted); border: 1px solid var(--border);
+            color: var(--fg); font-family: var(--font-mono); font-size: 10px;
+            border-radius: var(--radius-sm); outline: none;
+            cursor: text;
+        }
+        .link-input-row input:focus { border-color: var(--accent); box-shadow: var(--glow-sm); }
+        .link-copy-btn {
+            height: 30px; padding: 0 14px; border: 1px solid var(--accent);
+            background: var(--accent-b); color: var(--accent);
+            font-family: var(--font-body); font-size: 10px; font-weight: 600;
+            cursor: pointer; letter-spacing: 0.1em; text-transform: uppercase;
+            border-radius: var(--radius-sm); transition: all 150ms; white-space: nowrap;
+            text-shadow: var(--glow-sm);
+        }
+        .link-copy-btn:hover { background: var(--accent); color: var(--bg); box-shadow: var(--glow); }
+        .link-copy-btn.copied { border-color: var(--accent3); color: var(--accent3); background: var(--accent3-b); }
     </style>
 </head>
 <body>
@@ -455,6 +476,25 @@
     </div>
 </div>
 
+<div id="link-modal-backdrop" class="modal-backdrop">
+    <div id="link-modal" class="modal-box" style="max-width:480px;">
+        <div class="modal-titlebar">
+            <div class="modal-titlebar-dots"><span></span><span></span><span></span></div>
+            SHARE LINK
+        </div>
+        <div class="modal-body">
+            <div class="modal-sub" id="link-modal-status">生成中…</div>
+            <div class="link-input-row">
+                <input id="link-result-input" type="text" readonly placeholder="正在生成链接…">
+                <button class="link-copy-btn" id="link-copy-btn">复制</button>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-btn modal-btn-cancel" id="link-modal-close">关闭</button>
+        </div>
+    </div>
+</div>
+
 <script>
 (function () {
     const previewFrame   = document.getElementById('preview-frame');
@@ -469,6 +509,22 @@
     const veSaveBtn      = document.getElementById('ve-save-btn');
     const saveBackdrop   = document.getElementById('save-modal-backdrop');
     const modalConfirmBtn = document.getElementById('modal-confirm');
+    const linkBackdrop   = document.getElementById('link-modal-backdrop');
+    const linkResultInput = document.getElementById('link-result-input');
+    const linkCopyBtn    = document.getElementById('link-copy-btn');
+    const linkModalStatus = document.getElementById('link-modal-status');
+    document.getElementById('link-modal-close').addEventListener('click', () => linkBackdrop.classList.remove('open'));
+    linkBackdrop.addEventListener('click', e => { if (e.target === linkBackdrop) linkBackdrop.classList.remove('open'); });
+    linkResultInput.addEventListener('click', () => { linkResultInput.select(); });
+    linkCopyBtn.addEventListener('click', () => {
+        if (!linkResultInput.value) return;
+        linkResultInput.select();
+        try { document.execCommand('copy'); } catch(_) {}
+        try { navigator.clipboard && navigator.clipboard.writeText(linkResultInput.value); } catch(_) {}
+        linkCopyBtn.textContent = '已复制 ✓';
+        linkCopyBtn.classList.add('copied');
+        setTimeout(() => { linkCopyBtn.textContent = '复制'; linkCopyBtn.classList.remove('copied'); }, 2000);
+    });
 
     let htmlContent   = '';
     let toastTimeout  = null;
@@ -814,9 +870,13 @@
 
     /* ── Copy to clipboard ── */
     async function copyText(text) {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            await navigator.clipboard.writeText(text).catch(() => fallbackCopyRaw(text));
-        } else { fallbackCopyRaw(text); }
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(text);
+                return;
+            }
+        } catch (_) {}
+        fallbackCopyRaw(text);
     }
 
     /* ── Generate share link: jsonbin first, fallback to compressed URL ── */
@@ -825,7 +885,11 @@
     const BASE_URL    = location.href.split('#')[0].split('?')[0];
 
     async function generateShareLink(htmlSrc) {
-        showToast('正在生成分享链接…', 15000);
+        linkResultInput.value = '';
+        linkCopyBtn.textContent = '复制';
+        linkCopyBtn.classList.remove('copied');
+        linkModalStatus.textContent = '正在生成链接…';
+        linkBackdrop.classList.add('open');
         try {
             const controller = new AbortController();
             const tid = setTimeout(() => controller.abort(), 10000);
@@ -846,23 +910,28 @@
             const binId = data.metadata && data.metadata.id;
             if (!binId) throw new Error('no bin id');
             const shortUrl = BASE_URL + '#b=' + binId;
-            await copyText(shortUrl);
-            showToast('[OK] 短链已复制：' + shortUrl, 6000);
+            linkResultInput.value = shortUrl;
+            linkModalStatus.textContent = '短链已生成，点击复制';
         } catch (err) {
             const reason = err.name === 'AbortError' ? '超时' : err.message;
-            showToast('存储失败（' + reason + '），降级为压缩链接…', 3000);
+            linkModalStatus.textContent = '短链失败（' + reason + '），已生成压缩链接';
             try {
                 const encoded = await compressToBase64url(htmlSrc);
-                const fallbackUrl = BASE_URL + '#v2=' + encoded;
-                await copyText(fallbackUrl);
-                setTimeout(() => showToast('[OK] 压缩链接已复制（较长）', 4000), 3100);
-            } catch(e2) { showToast('[ERR] 链接生成失败：' + e2.message); }
+                linkResultInput.value = BASE_URL + '#v2=' + encoded;
+            } catch(e2) {
+                linkModalStatus.textContent = '链接生成失败：' + e2.message;
+            }
         }
+        if (linkResultInput.value) linkResultInput.select();
     }
     function fallbackCopyRaw(text) {
         const ta = document.createElement('textarea');
-        ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0;';
-        document.body.appendChild(ta); ta.focus(); ta.select();
+        ta.value = text;
+        ta.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0.01;border:none;outline:none;';
+        ta.setAttribute('readonly', '');
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.setSelectionRange(0, ta.value.length);
         try { document.execCommand('copy'); } catch (_) {}
         document.body.removeChild(ta);
     }
