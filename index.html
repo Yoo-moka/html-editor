@@ -426,7 +426,7 @@
                     <div class="fmt-badge badge-pdf">PDF</div>
                     <div class="fmt-info">
                         <div class="fmt-name">PDF Document</div>
-                        <div class="fmt-desc">截图渲染为矢量 PDF 文档</div>
+                        <div class="fmt-desc">直接导出 PDF 文件，页面完整还原</div>
                     </div>
                     <div class="fmt-radio"><div class="fmt-radio-dot"></div></div>
                 </div>
@@ -434,7 +434,7 @@
                     <div class="fmt-badge badge-jpg">JPG</div>
                     <div class="fmt-info">
                         <div class="fmt-name">JPG Image</div>
-                        <div class="fmt-desc">将页面截图保存为图片文件</div>
+                        <div class="fmt-desc">直接导出 JPG 截图，页面完整还原</div>
                     </div>
                     <div class="fmt-radio"><div class="fmt-radio-dot"></div></div>
                 </div>
@@ -768,21 +768,21 @@
 
     /* ── Short link ── */
     async function shortenAndCopy(longUrl) {
-        showToast('正在生成短链…', 8000);
+        showToast('正在生成短链，请稍候…', 30000);
         try {
-            const res = await fetch('https://is.gd/create.php?format=simple&url=' + encodeURIComponent(longUrl));
-            if (!res.ok) throw new Error('API 错误');
-            const short = (await res.text()).trim();
-            if (!short.startsWith('http')) throw new Error('短链格式异常');
+            const res = await fetch('https://tinyurl.com/api-create.php?url=' + encodeURIComponent(longUrl));
+            if (!res.ok) throw new Error('API ' + res.status);
+            const text = (await res.text()).trim();
+            if (!text.startsWith('http')) throw new Error('返回格式异常');
             if (navigator.clipboard && navigator.clipboard.writeText) {
-                await navigator.clipboard.writeText(short).catch(() => fallbackCopyRaw(short));
-            } else { fallbackCopyRaw(short); }
-            showToast('[OK] 短链已复制：' + short);
-        } catch (_) {
+                await navigator.clipboard.writeText(text).catch(() => fallbackCopyRaw(text));
+            } else { fallbackCopyRaw(text); }
+            showToast('[OK] 短链已生成并复制：' + text, 4000);
+        } catch (err) {
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 await navigator.clipboard.writeText(longUrl).catch(() => fallbackCopyRaw(longUrl));
             } else { fallbackCopyRaw(longUrl); }
-            showToast('[OK] 链接已复制（短链生成失败，已复制原始链接）');
+            showToast('[!] 短链生成失败，已复制原始链接', 3000);
         }
     }
     function fallbackCopyRaw(text) {
@@ -847,31 +847,68 @@
         });
     }
     const JSPDF_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    const DOM2IMG_CDN = 'https://cdn.jsdelivr.net/npm/dom-to-image-more@3.4.0/dist/dom-to-image-more.min.js';
+
     function capturePageAsDataURL(htmlSrc) {
         return new Promise((resolve, reject) => {
-            const msgId = 'h2c_'+Date.now();
-            const onMsg = (evt) => {
-                if (!evt.data||evt.data.id!==msgId) return;
-                clearTimeout(timer);
-                window.removeEventListener('message',onMsg);
-                if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
-                if (evt.data.error) { reject(new Error(evt.data.error)); return; }
-                resolve({dataURL:evt.data.dataURL, W:evt.data.W, H:evt.data.H});
-            };
-            window.addEventListener('message', onMsg);
-            const timer = setTimeout(() => { window.removeEventListener('message',onMsg); if(iframe.parentNode)iframe.parentNode.removeChild(iframe); reject(new Error('截图超时，请重试')); }, 30000);
+            const msgId = 'cap_' + Date.now();
+
             const iframe = document.createElement('iframe');
-            iframe.style.cssText = 'position:fixed;left:-9999px;top:0;border:none;width:1280px;height:900px;visibility:hidden;';
-            const captureScript = `<script>(function(){var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';s.onload=function(){var W=Math.max(1280,document.documentElement.scrollWidth),H=Math.max(900,document.documentElement.scrollHeight);document.documentElement.style.width=W+'px';document.documentElement.style.height=H+'px';html2canvas(document.body,{scale:2,useCORS:true,allowTaint:true,backgroundColor:null,width:W,height:H,windowWidth:W,windowHeight:H}).then(function(canvas){parent.postMessage({id:'${msgId}',dataURL:canvas.toDataURL('image/jpeg',0.95),W:W,H:H},'*');}).catch(function(e){parent.postMessage({id:'${msgId}',error:e.message},'*');});};s.onerror=function(){parent.postMessage({id:'${msgId}',error:'html2canvas CDN 加载失败'},'*');};document.head.appendChild(s);})();<\/script>`;
-            const injected = htmlSrc.replace(/<\/body>/i, captureScript+'</body>');
-            const blob = new Blob([injected],{type:'text/html'}); const blobUrl=URL.createObjectURL(blob);
-            iframe.src=blobUrl; setTimeout(()=>URL.revokeObjectURL(blobUrl),15000);
+            iframe.style.cssText = 'position:fixed;left:-9999px;top:0;border:none;width:1280px;height:900px;opacity:0;pointer-events:none;';
             document.body.appendChild(iframe);
-            iframe.addEventListener('load',()=>clearTimeout(timer));
+
+            let timer = null;
+
+            const cleanup = () => {
+                clearTimeout(timer);
+                window.removeEventListener('message', onMsg);
+                if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+            };
+
+            const onMsg = (evt) => {
+                if (!evt.data || evt.data.id !== msgId) return;
+                cleanup();
+                if (evt.data.error) { reject(new Error(evt.data.error)); return; }
+                resolve({ dataURL: evt.data.dataURL, W: evt.data.W, H: evt.data.H });
+            };
+
+            window.addEventListener('message', onMsg);
+
+            timer = setTimeout(() => {
+                cleanup();
+                reject(new Error('截图超时，请检查网络后重试'));
+            }, 60000);
+
+            const captureScript = `<script>(function(){
+var s=document.createElement('script');
+s.src='${DOM2IMG_CDN}';
+s.onload=function(){
+  try{
+    var W=Math.max(1280,document.documentElement.scrollWidth);
+    var H=Math.max(900,document.documentElement.scrollHeight);
+    document.documentElement.style.width=W+'px';
+    document.documentElement.style.height=H+'px';
+    domtoimage.toJpeg(document.documentElement,{quality:0.95,width:W,height:H,bgcolor:'#ffffff'})
+    .then(function(dataURL){
+      parent.postMessage({id:'${msgId}',dataURL:dataURL,W:W,H:H},'*');
+    }).catch(function(e){parent.postMessage({id:'${msgId}',error:e.message},'*');});
+  }catch(e){parent.postMessage({id:'${msgId}',error:e.message},'*');}
+};
+s.onerror=function(){parent.postMessage({id:'${msgId}',error:'dom-to-image 加载失败，请检查网络'},'*');};
+document.head.appendChild(s);
+})();<\/script>`;
+
+            const hasBody = /<\/body>/i.test(htmlSrc);
+            const injected = hasBody
+                ? htmlSrc.replace(/<\/body>/i, captureScript + '</body>')
+                : htmlSrc + captureScript;
+
+            iframe.srcdoc = injected;
         });
     }
+
     async function exportPDF(fh) {
-        showToast('正在生成 PDF，请稍候…', 15000);
+        showToast('正在生成 PDF，请稍候…', 60000);
         try { await loadScript(JSPDF_CDN); } catch(e) { showToast('[ERR] jsPDF 加载失败'); return; }
         try {
             const {dataURL,W,H} = await capturePageAsDataURL(htmlContent);
@@ -885,8 +922,9 @@
             else { const b=(filenameInput.value.trim()||'untitled').replace(/\.(html?|pdf|jpe?g)$/i,''); pdf.save(b+'.pdf'); showToast('[OK] PDF 已保存'); }
         } catch(e) { showToast('[ERR] PDF 生成失败：'+e.message); }
     }
+
     async function exportJPG(fh) {
-        showToast('正在生成截图，请稍候…', 15000);
+        showToast('正在生成截图，请稍候…', 60000);
         try {
             const {dataURL} = await capturePageAsDataURL(htmlContent);
             const resp=await fetch(dataURL); const jpgBlob=await resp.blob();
@@ -895,6 +933,7 @@
             else { fallbackDownload(jpgBlob,b+'.jpg'); }
         } catch(e) { showToast('[ERR] 截图失败：'+e.message); }
     }
+
     function fallbackDownload(blob, filename) {
         const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; a.click();
         setTimeout(()=>URL.revokeObjectURL(a.href),2000); showToast('[OK] 已保存');
