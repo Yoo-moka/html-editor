@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HTML_EDITOR // CYBERPUNK</title>
-    <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
+
     <meta name="description" content="在线 HTML 可视编辑器，支持导出 PDF / JPG、生成分享链接">
     <meta property="og:title" content="HTML_EDITOR // CYBERPUNK">
     <meta property="og:description" content="在线 HTML 可视编辑器，支持导出 PDF / JPG、生成分享链接">
@@ -612,18 +612,49 @@
     btnVisualEdit.style.display = 'none';
     updatePreview();
 
+    /* ── Compress / Decompress (native CompressionStream) ── */
+    async function compressToBase64url(str) {
+        const bytes = new TextEncoder().encode(str);
+        const cs = new CompressionStream('deflate-raw');
+        const writer = cs.writable.getWriter();
+        writer.write(bytes);
+        writer.close();
+        const buf = await new Response(cs.readable).arrayBuffer();
+        const u8 = new Uint8Array(buf);
+        let bin = '';
+        for (let i = 0; i < u8.length; i++) bin += String.fromCharCode(u8[i]);
+        return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+    async function decompressFromBase64url(b64url) {
+        const b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
+        const bin = atob(b64);
+        const u8 = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+        const ds = new DecompressionStream('deflate-raw');
+        const writer = ds.writable.getWriter();
+        writer.write(u8);
+        writer.close();
+        return await new Response(ds.readable).text();
+    }
+
     /* ── Hash restore ── */
     (function restoreFromHash() {
         const hash = location.hash;
-        if (!hash.startsWith('#v=')) return;
-        const compressed = hash.slice(3);
-        const waitForLZ = (tries) => {
-            if (window.LZString) {
+        if (hash.startsWith('#v2=')) {
+            const encoded = hash.slice(4);
+            decompressFromBase64url(encoded).then(html => {
+                if (html) { htmlContent = html; isWelcome = false; btnVisualEdit.style.display = ''; btnVisualEdit.classList.add('btn-outline'); updatePreview(); showToast('[OK] 已从链接加载页面内容'); }
+            }).catch(() => showToast('[ERR] 链接解析失败'));
+        } else if (hash.startsWith('#v=')) {
+            const compressed = hash.slice(3);
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js';
+            script.onload = () => {
                 const html = LZString.decompressFromEncodedURIComponent(compressed);
                 if (html) { htmlContent = html; isWelcome = false; btnVisualEdit.style.display = ''; btnVisualEdit.classList.add('btn-outline'); updatePreview(); showToast('[OK] 已从链接加载页面内容'); }
-            } else if (tries > 0) { setTimeout(() => waitForLZ(tries - 1), 200); }
-        };
-        waitForLZ(20);
+            };
+            document.head.appendChild(script);
+        }
     })();
 
     const veBtnLabel = document.getElementById('ve-btn-label');
@@ -768,21 +799,32 @@
 
     /* ── Short link ── */
     async function shortenAndCopy(longUrl) {
+        if (longUrl.length > 5000) {
+            showToast('[!] 内容过大，无法生成短链（链接已复制，可直接分享）', 4000);
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(longUrl).catch(() => fallbackCopyRaw(longUrl));
+            } else { fallbackCopyRaw(longUrl); }
+            return;
+        }
         showToast('正在生成短链，请稍候…', 30000);
         try {
-            const res = await fetch('https://tinyurl.com/api-create.php?url=' + encodeURIComponent(longUrl));
+            const controller = new AbortController();
+            const tid = setTimeout(() => controller.abort(), 8000);
+            const res = await fetch('https://tinyurl.com/api-create.php?url=' + encodeURIComponent(longUrl), { signal: controller.signal });
+            clearTimeout(tid);
             if (!res.ok) throw new Error('API ' + res.status);
             const text = (await res.text()).trim();
             if (!text.startsWith('http')) throw new Error('返回格式异常');
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 await navigator.clipboard.writeText(text).catch(() => fallbackCopyRaw(text));
             } else { fallbackCopyRaw(text); }
-            showToast('[OK] 短链已生成并复制：' + text, 4000);
+            showToast('[OK] 短链已复制：' + text, 5000);
         } catch (err) {
+            const reason = err.name === 'AbortError' ? '请求超时' : (err.message || '网络错误');
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 await navigator.clipboard.writeText(longUrl).catch(() => fallbackCopyRaw(longUrl));
             } else { fallbackCopyRaw(longUrl); }
-            showToast('[!] 短链生成失败，已复制原始链接', 3000);
+            showToast('[!] 短链失败（' + reason + '），已复制原始链接', 4000);
         }
     }
     function fallbackCopyRaw(text) {
@@ -796,15 +838,19 @@
     /* ── Save modal confirm ── */
     document.getElementById('modal-confirm').addEventListener('click', async () => {
         if (selectedFmt === 'link') {
-            if (!window.LZString) { showToast('[ERR] 压缩库未加载，请刷新后重试'); return; }
             flushVisualSync();
-            const compressed = LZString.compressToEncodedURIComponent(htmlContent);
-            const url = location.href.split('#')[0].split('?')[0] + '#v=' + compressed;
             saveBackdrop.classList.remove('open');
             selectedFmt = 'html'; updateConfirmBtn('html');
             document.querySelectorAll('.fmt-option').forEach(o => o.classList.remove('selected'));
             document.querySelector('.fmt-option[data-fmt="html"]').classList.add('selected');
-            await shortenAndCopy(url); return;
+            showToast('正在压缩内容…', 10000);
+            try {
+                const encoded = await compressToBase64url(htmlContent);
+                const base = location.href.split('#')[0].split('?')[0];
+                const url = base + '#v2=' + encoded;
+                await shortenAndCopy(url);
+            } catch(e) { showToast('[ERR] 压缩失败：' + e.message); }
+            return;
         }
         const currentFmt = selectedFmt;
         saveBackdrop.classList.remove('open');
