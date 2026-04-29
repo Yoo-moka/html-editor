@@ -638,20 +638,35 @@
     }
 
     /* ── Hash restore ── */
+    function applyRestoredHTML(html) {
+        if (!html) return;
+        htmlContent = html; isWelcome = false;
+        btnVisualEdit.style.display = ''; btnVisualEdit.classList.add('btn-outline');
+        updatePreview(); showToast('[OK] 已从链接加载页面内容');
+    }
     (function restoreFromHash() {
         const hash = location.hash;
-        if (hash.startsWith('#v2=')) {
+        if (hash.startsWith('#b=')) {
+            const binId = hash.slice(3);
+            showToast('正在加载分享内容…', 10000);
+            fetch('https://api.jsonbin.io/v3/b/' + binId + '/latest', {
+                headers: { 'X-Bin-Meta': 'false' }
+            }).then(r => r.json()).then(data => {
+                const html = data && data.h;
+                if (html) applyRestoredHTML(html);
+                else throw new Error('内容为空');
+            }).catch(() => showToast('[ERR] 分享链接加载失败，内容可能已过期'));
+        } else if (hash.startsWith('#v2=')) {
             const encoded = hash.slice(4);
-            decompressFromBase64url(encoded).then(html => {
-                if (html) { htmlContent = html; isWelcome = false; btnVisualEdit.style.display = ''; btnVisualEdit.classList.add('btn-outline'); updatePreview(); showToast('[OK] 已从链接加载页面内容'); }
-            }).catch(() => showToast('[ERR] 链接解析失败'));
+            decompressFromBase64url(encoded).then(applyRestoredHTML)
+                .catch(() => showToast('[ERR] 链接解析失败'));
         } else if (hash.startsWith('#v=')) {
             const compressed = hash.slice(3);
             const script = document.createElement('script');
             script.src = 'https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js';
             script.onload = () => {
                 const html = LZString.decompressFromEncodedURIComponent(compressed);
-                if (html) { htmlContent = html; isWelcome = false; btnVisualEdit.style.display = ''; btnVisualEdit.classList.add('btn-outline'); updatePreview(); showToast('[OK] 已从链接加载页面内容'); }
+                applyRestoredHTML(html);
             };
             document.head.appendChild(script);
         }
@@ -797,34 +812,51 @@
         } else { updatePreview(); showToast('[OK] 预览已刷新'); }
     });
 
-    /* ── Short link ── */
-    async function shortenAndCopy(longUrl) {
-        if (longUrl.length > 5000) {
-            showToast('[!] 内容过大，无法生成短链（链接已复制，可直接分享）', 4000);
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                await navigator.clipboard.writeText(longUrl).catch(() => fallbackCopyRaw(longUrl));
-            } else { fallbackCopyRaw(longUrl); }
-            return;
-        }
-        showToast('正在生成短链，请稍候…', 30000);
+    /* ── Copy to clipboard ── */
+    async function copyText(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text).catch(() => fallbackCopyRaw(text));
+        } else { fallbackCopyRaw(text); }
+    }
+
+    /* ── Generate share link: jsonbin first, fallback to compressed URL ── */
+    const JSONBIN_KEY = '$2a$10$Fx1qN2Y9Ed0sGH5GfMiqQ./aOAW8nzw94J6XQ2WVDYjE53Puso1F.';
+    const JSONBIN_API = 'https://api.jsonbin.io/v3/b';
+    const BASE_URL    = location.href.split('#')[0].split('?')[0];
+
+    async function generateShareLink(htmlSrc) {
+        showToast('正在生成分享链接…', 15000);
         try {
             const controller = new AbortController();
-            const tid = setTimeout(() => controller.abort(), 8000);
-            const res = await fetch('https://tinyurl.com/api-create.php?url=' + encodeURIComponent(longUrl), { signal: controller.signal });
+            const tid = setTimeout(() => controller.abort(), 10000);
+            const res = await fetch(JSONBIN_API, {
+                method: 'POST',
+                signal: controller.signal,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': JSONBIN_KEY,
+                    'X-Bin-Private': 'false',
+                    'X-Bin-Name': 'html-share'
+                },
+                body: JSON.stringify({ h: htmlSrc })
+            });
             clearTimeout(tid);
-            if (!res.ok) throw new Error('API ' + res.status);
-            const text = (await res.text()).trim();
-            if (!text.startsWith('http')) throw new Error('返回格式异常');
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                await navigator.clipboard.writeText(text).catch(() => fallbackCopyRaw(text));
-            } else { fallbackCopyRaw(text); }
-            showToast('[OK] 短链已复制：' + text, 5000);
+            if (!res.ok) throw new Error('jsonbin ' + res.status);
+            const data = await res.json();
+            const binId = data.metadata && data.metadata.id;
+            if (!binId) throw new Error('no bin id');
+            const shortUrl = BASE_URL + '#b=' + binId;
+            await copyText(shortUrl);
+            showToast('[OK] 短链已复制：' + shortUrl, 6000);
         } catch (err) {
-            const reason = err.name === 'AbortError' ? '请求超时' : (err.message || '网络错误');
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                await navigator.clipboard.writeText(longUrl).catch(() => fallbackCopyRaw(longUrl));
-            } else { fallbackCopyRaw(longUrl); }
-            showToast('[!] 短链失败（' + reason + '），已复制原始链接', 4000);
+            const reason = err.name === 'AbortError' ? '超时' : err.message;
+            showToast('存储失败（' + reason + '），降级为压缩链接…', 3000);
+            try {
+                const encoded = await compressToBase64url(htmlSrc);
+                const fallbackUrl = BASE_URL + '#v2=' + encoded;
+                await copyText(fallbackUrl);
+                setTimeout(() => showToast('[OK] 压缩链接已复制（较长）', 4000), 3100);
+            } catch(e2) { showToast('[ERR] 链接生成失败：' + e2.message); }
         }
     }
     function fallbackCopyRaw(text) {
@@ -843,13 +875,7 @@
             selectedFmt = 'html'; updateConfirmBtn('html');
             document.querySelectorAll('.fmt-option').forEach(o => o.classList.remove('selected'));
             document.querySelector('.fmt-option[data-fmt="html"]').classList.add('selected');
-            showToast('正在压缩内容…', 10000);
-            try {
-                const encoded = await compressToBase64url(htmlContent);
-                const base = location.href.split('#')[0].split('?')[0];
-                const url = base + '#v2=' + encoded;
-                await shortenAndCopy(url);
-            } catch(e) { showToast('[ERR] 压缩失败：' + e.message); }
+            await generateShareLink(htmlContent);
             return;
         }
         const currentFmt = selectedFmt;
